@@ -1,69 +1,57 @@
-import { NextRequest, NextResponse } from "next/server";
-import { confirmReservation, getUserReservations } from "@/lib/server/holding-manager";
+import { NextRequest, NextResponse } from "next/server"
+import { getUserReservations, cancelReservation } from "@/lib/server/holding-manager"
 
-export async function POST(request: NextRequest) {
+export async function GET(req: NextRequest) {
     try {
-        const body = await request.json();
-        const { holdingId, performanceTitle, venue } = body;
-
-        if (!holdingId || !performanceTitle || !venue) {
-            return NextResponse.json(
-                { success: false, error: "Missing required fields" },
-                { status: 400 }
-            );
-        }
-
-        const result = confirmReservation(holdingId, performanceTitle, venue);
-
-        if (!result.success) {
-            return NextResponse.json(
-                {
-                    success: false,
-                    error: "RESERVATION_FAILED",
-                    message: result.error
-                },
-                { status: 410 } // Gone (Expired)
-            );
-        }
-
-        return NextResponse.json({
-            success: true,
-            reservation: result.reservation,
-            redirectUrl: `/reservation/complete`
-        });
-
-    } catch (e) {
-        console.error("Error confirming reservation:", e);
-        return NextResponse.json(
-            { success: false, error: "Internal Server Error" },
-            { status: 500 }
-        );
-    }
-}
-
-export async function GET(request: NextRequest) {
-    try {
-        const { searchParams } = new URL(request.url);
-        const userId = searchParams.get("userId");
+        const { searchParams } = new URL(req.url)
+        const userId = searchParams.get("userId")
 
         if (!userId) {
             return NextResponse.json(
-                { success: false, error: "Missing userId" },
+                { error: "User ID is required" },
                 { status: 400 }
-            );
+            )
         }
 
-        const reservations = getUserReservations(userId);
+        const userReservations = getUserReservations(userId)
 
-        return NextResponse.json({
-            reservations
-        });
-
-    } catch (e) {
-        console.error("Error fetching reservations:", e);
+        return NextResponse.json(userReservations)
+    } catch (error) {
+        console.error("Failed to fetch reservations:", error)
         return NextResponse.json(
-            { success: false, error: "Internal Server Error" },
+            { error: "Internal Server Error" },
             { status: 500 }
-        );
+        )
+    }
+}
+
+export async function DELETE(req: NextRequest) {
+    try {
+        const { searchParams } = new URL(req.url)
+        const reservationId = searchParams.get("reservationId")
+
+        if (!reservationId) {
+            return NextResponse.json(
+                { error: "Reservation ID is required" },
+                { status: 400 }
+            )
+        }
+
+        const success = cancelReservation(reservationId)
+
+        if (!success) {
+            return NextResponse.json(
+                { error: "Reservation not found or already cancelled" },
+                { status: 404 }
+            )
+        }
+
+        return NextResponse.json({ success: true })
+    } catch (error) {
+        console.error("Failed to cancel reservation:", error)
+        return NextResponse.json(
+            { error: "Internal Server Error" },
+            { status: 500 }
+        )
     }
 }

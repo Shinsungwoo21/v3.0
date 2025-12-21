@@ -14,10 +14,11 @@ interface SeatMapProps {
     venueId: string;
     performanceId: string;
     date: string;
+    time: string;
     onSelectionComplete: (selectedSeats: Seat[], totalPrice: number) => void;
 }
 
-export function SeatMap({ venueId, performanceId, date, onSelectionComplete }: SeatMapProps) {
+export function SeatMap({ venueId, performanceId, date, time, onSelectionComplete }: SeatMapProps) {
     const [venueData, setVenueData] = useState<VenueData | null>(null)
     const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([])
     const [loading, setLoading] = useState(true)
@@ -35,7 +36,7 @@ export function SeatMap({ venueId, performanceId, date, onSelectionComplete }: S
             const data = JSON.parse(JSON.stringify(sampleTheater)) as VenueData;
 
             // 2. Get Real-time Seat Status (Add timestamp to prevent caching)
-            const statusRes = await fetch(`/api/seats/${performanceId}?t=${new Date().getTime()}`, { cache: 'no-store' });
+            const statusRes = await fetch(`/api/seats/${performanceId}?date=${date}&time=${time}&t=${new Date().getTime()}`, { cache: 'no-store' });
 
             // Race Condition Check: If a newer request started, ignore this response
             if (requestId !== lastRequestIdRef.current) return;

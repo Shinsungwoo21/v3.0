@@ -16,14 +16,24 @@ export async function GET(
 ) {
     const params = await props.params;
     try {
+        const { searchParams } = new URL(request.url);
         const { performanceId } = params;
+        const date = searchParams.get('date');
+        const time = searchParams.get('time');
 
-        // In a real app, date/time would also be params to identify specific showtime.
-        // For prototype, we assume the performance ID implies the show or we just aggregate.
-        // But the holding manager filters by performanceId mostly.
+        if (!date || !time) {
+            // If missing, return empty or default?
+            // For now, let's error or default to empty to force frontend to send them.
+            // Or better, handle gracefully.
+            console.warn(`[API GET /seats/${performanceId}] Missing date/time params`);
+            // Default to not returning specific statuses if date/time missing, 
+            // but getSeatStatusMap might execute cleanup.
+            // Let's pass empty strings if undefined, getSeatStatusMap will likely match nothing, return all available.
+            // This is safer than crashing.
+        }
 
-        const statusMap = getSeatStatusMap(performanceId);
-        console.log(`[API GET /seats/${performanceId}] Returning status for ${Object.keys(statusMap).length} seats. Keys: ${Object.keys(statusMap).join(', ')}`);
+        const statusMap = getSeatStatusMap(performanceId, date || '', time || '');
+        console.log(`[API GET /seats/${performanceId}] Date: ${date}, Time: ${time}. Returning status for ${Object.keys(statusMap).length} seats.`);
 
         return NextResponse.json({
             seats: statusMap

@@ -204,6 +204,26 @@ export function releaseHolding(holdingId: string): boolean {
     return false;
 }
 
+// 5a. Release all holdings for a specific user
+export function releaseHoldingsByUser(userId: string): string[] {
+    const data = readJson<{ holdings: Holding[] }>(HOLDINGS_FILE);
+    const initialLength = data.holdings.length;
+
+    // Find holdings to be removed for this user
+    const removedHoldings = data.holdings.filter(h => h.userId === userId);
+    const removedIds = removedHoldings.map(h => h.holdingId);
+
+    // Filter out user's holdings
+    const newHoldings = data.holdings.filter(h => h.userId !== userId);
+
+    if (initialLength !== newHoldings.length) {
+        writeJson(HOLDINGS_FILE, { holdings: newHoldings });
+        console.log(`[HoldingManager] Released ${removedIds.length} holdings for user ${userId}`);
+        return removedIds;
+    }
+    return [];
+}
+
 // 6. Confirm Reservation (Move from Holding to Reserved)
 export function confirmReservation(
     holdingId: string,
@@ -246,7 +266,7 @@ export function confirmReservation(
 }
 
 // 7. Get Seat Status Map for UI
-export function getSeatStatusMap(performanceId: string): Record<string, 'reserved' | 'holding' | 'available'> {
+export function getSeatStatusMap(performanceId: string, date: string, time: string): Record<string, 'reserved' | 'holding' | 'available'> {
     cleanupExpiredHoldings();
 
     const statusMap: Record<string, 'reserved' | 'holding' | 'available'> = {};
@@ -264,17 +284,19 @@ export function getSeatStatusMap(performanceId: string): Record<string, 'reserve
     // Reserved
     const reservationData = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);
     reservationData.reservations
-        .filter(r => r.performanceId === performanceId && r.status === 'confirmed')
+        .filter(r => r.performanceId === performanceId && r.date === date && r.time === time && r.status === 'confirmed')
         .forEach(r => {
             r.seats.forEach(s => {
                 statusMap[s.seatId] = 'reserved';
+                // Debug log
+                // console.log(`[getSeatStatusMap] Seat ${s.seatId} marked as reserved`);
             });
         });
 
     // Holding
     const holdingData = readJson<{ holdings: Holding[] }>(HOLDINGS_FILE);
     holdingData.holdings
-        .filter(h => h.performanceId === performanceId)
+        .filter(h => h.performanceId === performanceId && h.date === date && h.time === time)
         .forEach(h => {
             h.seats.forEach(s => {
                 // If not already reserved (shouldn't happen with cleanup logic, but safety first)
@@ -287,7 +309,22 @@ export function getSeatStatusMap(performanceId: string): Record<string, 'reserve
     return statusMap;
 }
 
-// 8. Get User Reservations
+// 8. Cancel Reservation
+export function cancelReservation(reservationId: string): boolean {
+    const data = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);
+    const reservationIndex = data.reservations.findIndex(r => r.id === reservationId);
+
+    if (reservationIndex === -1) {
+        return false;
+    }
+
+    // Update status to cancelled
+    data.reservations[reservationIndex].status = 'cancelled';
+    writeJson(RESERVATIONS_FILE, data);
+    return true;
+}
+
+// 9. Get User Reservations
 export function getUserReservations(userId: string): Reservation[] {
     const data = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);
     return data.reservations

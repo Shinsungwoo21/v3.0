@@ -3,6 +3,7 @@ import {
     createHolding,
     confirmReservation,
     releaseHolding,
+    releaseHoldingsByUser,
     getSeatStatusMap,
     getUserReservations,
     getHolding,
@@ -148,7 +149,7 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
 
             case "get_ticket_availability": {
                 const { performanceId, date, time } = input;
-                const statusMap = getSeatStatusMap(performanceId);
+                const statusMap = getSeatStatusMap(performanceId, date, time);
 
                 // Initialize grades
                 const grades: Record<string, string[]> = {
@@ -194,6 +195,7 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                     const { grade, price } = getSeatInfo(id);
                     return {
                         seatId: id,
+                        seatNumber: id, // Add this for ReservationCard compatibility (expects string like 'A-5')
                         row: row,
                         number: parseInt(numStr),
                         grade: grade,
@@ -201,7 +203,16 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                     };
                 });
 
-                const result = createHolding(performanceId, seatObjects, userId, date, time);
+                // Use the consistent mock user ID if the input userId is generic 'user-1' or 'chatbot-user'
+                // This ensures it matches the My Page logic which looks for 'mock-user-01'
+                // In a real app, this would be the actual authenticated user's ID
+                const targetUserId = (userId === 'user-1' || userId === 'chatbot-user' || !userId) ? 'mock-user-01' : userId;
+
+                // [Fix] Auto-release any existing holdings for this user before creating a new one.
+                // This ensures we don't end up with multiple conflicting holdings (e.g. Row B held while trying to hold Row A).
+                const releasedIds = releaseHoldingsByUser(targetUserId);
+
+                const result = createHolding(performanceId, seatObjects, targetUserId, date, time);
 
                 if (!result.success) {
                     return {
@@ -215,12 +226,8 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                     success: true,
                     holdingId: result.holdingId,
                     expiresAt: result.expiresAt,
-                    message: `선택하신 좌석이 고객님께 선점되었습니다. 1분 이내 결제하지 않으실 경우 선점된 좌석이 해제됩니다.
-<!-- ACTION_DATA: ${JSON.stringify({
-                        type: "HOLDING_CREATED",
-                        holdingId: result.holdingId,
-                        expiresAt: result.expiresAt
-                    })} -->`
+                    releasedHoldings: releasedIds, // Return this so route.ts can inject HOLDING_RELEASED events
+                    message: `선택하신 좌석이 잠시 선점되었습니다. (아직 예약이 완료되지 않았습니다)\n\n1분 이내에 "예약 확정"이라고 말씀하시거나 화면의 [예약 확정] 버튼을 눌러주세요.`
                 };
             }
 
@@ -266,7 +273,7 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                 return {
                     success: true,
                     reservationId: result.reservation?.id,
-                    message: "예약이 확정되었습니다."
+                    message: `예약이 확정되었습니다.\n\n[내 예약 확인하기](http://localhost:3000/my)`
                 };
             }
 

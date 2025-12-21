@@ -12,7 +12,7 @@ export default function SeatsPage() {
     const router = useRouter()
 
     const performanceId = params.id as string
-    const date = searchParams.get("date") || "2024-12-25" // Default mockup date
+    const date = searchParams.get("date") || "2025-12-25" // Default mockup date
     const time = searchParams.get("time") || "19:00"
 
     const [isSubmitting, setIsSubmitting] = useState(false)
@@ -102,6 +102,7 @@ export default function SeatsPage() {
                 venueId="sample-theater" // hardcoded for now
                 performanceId={performanceId}
                 date={date}
+                time={time}
                 onSelectionComplete={handleSelectionComplete}
             />
         </div>

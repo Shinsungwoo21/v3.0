@@ -1,116 +1,191 @@
 {
   "reservations": [
     {
-      "id": "cf22117d-0757-46e8-8d04-230b5831b75b",
+      "reservationId": "res-001",
+      "userId": "mock-user-01",
+      "performanceTitle": "오페라의 유령",
+      "posterUrl": "/posters/opera.jpg",
+      "date": "2025-01-15",
+      "time": "19:30",
+      "venue": "블루스퀘어 신한카드홀",
+      "seats": [
+        {
+          "grade": "VIP",
+          "seatNumber": "A-5"
+        },
+        {
+          "grade": "VIP",
+          "seatNumber": "A-6"
+        }
+      ],
+      "totalPrice": 340000,
+      "status": "confirmed",
+      "createdAt": "2024-12-22T10:00:00Z"
+    },
+    {
+      "reservationId": "res-002",
+      "userId": "mock-user-01",
+      "performanceTitle": "시카고",
+      "posterUrl": "/posters/chicago.jpg",
+      "date": "2025-02-10",
+      "time": "14:00",
+      "venue": "디큐브 링크아트센터",
+      "seats": [
+        {
+          "grade": "R",
+          "seatNumber": "B-12"
+        }
+      ],
+      "totalPrice": 140000,
+      "status": "cancelled",
+      "createdAt": "2024-12-21T15:30:00Z"
+    },
+    {
+      "id": "20772439-bfbc-4cbf-8f6b-5a24136dd9db",
       "userId": "user-1",
       "performanceId": "perf-1",
-      "performanceTitle": "오페라의 유령",
+      "performanceTitle": "오페라의 유령 (The Phantom of the Opera)",
       "venue": "Mega Arts Center",
       "date": "2025-12-25",
       "time": "19:00",
       "seats": [
         {
-          "seatId": "I-9",
+          "seatId": "H-9",
+          "row": "H",
+          "number": 9,
+          "grade": "S",
+          "price": 90000
+        },
+        {
+          "seatId": "H-10",
+          "row": "H",
+          "number": 10,
+          "grade": "S",
+          "price": 90000
+        }
+      ],
+      "totalPrice": 180000,
+      "status": "confirmed",
+      "createdAt": "2025-12-21T17:24:41.920Z"
+    },
+    {
+      "id": "6be5cca0-9cc7-493d-a857-bc5351efcabd",
+      "userId": "mock-user-01",
+      "performanceId": "perf-1",
+      "performanceTitle": "오페라의 유령 (The Phantom of the Opera)",
+      "venue": "Mega Arts Center",
+      "date": "2025-12-25",
+      "time": "19:00",
+      "seats": [
+        {
+          "seatId": "F-9",
+          "row": "F",
+          "number": 9,
+          "grade": "S",
+          "price": 90000
+        },
+        {
+          "seatId": "F-10",
+          "row": "F",
+          "number": 10,
+          "grade": "S",
+          "price": 90000
+        },
+        {
+          "seatId": "F-11",
+          "row": "F",
+          "number": 11,
+          "grade": "S",
+          "price": 90000
+        }
+      ],
+      "totalPrice": 270000,
+      "status": "cancelled",
+      "createdAt": "2025-12-21T17:30:51.102Z"
+    },
+    {
+      "id": "9cc5d57f-e280-4803-8a5c-3d503f3f45d8",
+      "userId": "mock-user-01",
+      "performanceId": "perf-1",
+      "performanceTitle": "오페라의 유령 (The Phantom of the Opera)",
+      "venue": "Mega Arts Center",
+      "date": "2025-12-25",
+      "time": "19:00",
+      "seats": [
+        {
+          "seatId": "I-10",
+          "seatNumber": "I-10",
           "row": "I",
+          "number": 10,
+          "grade": "A",
+          "price": 60000
+        },
+        {
+          "seatId": "I-11",
+          "seatNumber": "I-11",
+          "row": "I",
+          "number": 11,
+          "grade": "A",
+          "price": 60000
+        },
+        {
+          "seatId": "I-12",
+          "seatNumber": "I-12",
+          "row": "I",
+          "number": 12,
+          "grade": "A",
+          "price": 60000
+        }
+      ],
+      "totalPrice": 180000,
+      "status": "cancelled",
+      "createdAt": "2025-12-21T17:37:54.121Z"
+    },
+    {
+      "id": "320d77ce-4290-4d3d-90a2-9aabf8044544",
+      "userId": "mock-user-01",
+      "performanceId": "perf-1",
+      "performanceTitle": "오페라의 유령 (The Phantom of the Opera)",
+      "venue": "Mega Arts Center",
+      "date": "2025-12-25",
+      "time": "19:00",
+      "seats": [
+        {
+          "seatId": "A-9",
+          "seatNumber": "A-9",
+          "row": "A",
           "number": 9,
           "grade": "VIP",
           "price": 150000
         },
         {
-          "seatId": "I-10",
-          "row": "I",
+          "seatId": "A-10",
+          "seatNumber": "A-10",
+          "row": "A",
           "number": 10,
           "grade": "VIP",
           "price": 150000
         },
         {
-          "seatId": "I-11",
-          "row": "I",
+          "seatId": "A-11",
+          "seatNumber": "A-11",
+          "row": "A",
           "number": 11,
           "grade": "VIP",
           "price": 150000
         },
         {
-          "seatId": "I-12",
-          "row": "I",
+          "seatId": "A-12",
+          "seatNumber": "A-12",
+          "row": "A",
           "number": 12,
           "grade": "VIP",
           "price": 150000
         }
       ],
       "totalPrice": 600000,
-      "status": "confirmed",
-      "createdAt": "2025-12-21T14:19:17.211Z"
-    },
-    {
-      "id": "9396941e-0ec5-4502-80ec-c692750e9a13",
-      "userId": "$USERID",
-      "performanceId": "perf-2",
-      "performanceTitle": "오페라의 유령",
-      "venue": "Mega Arts Center",
-      "date": "2025-12-24",
-      "time": "15:00",
-      "seats": [
-        {
-          "seatId": "F-8",
-          "row": "F",
-          "number": 8,
-          "grade": "VIP",
-          "price": 150000
-        },
-        {
-          "seatId": "F-9",
-          "row": "F",
-          "number": 9,
-          "grade": "VIP",
-          "price": 150000
-        },
-        {
-          "seatId": "F-10",
-          "row": "F",
-          "number": 10,
-          "grade": "VIP",
-          "price": 150000
-        }
-      ],
-      "totalPrice": 450000,
-      "status": "confirmed",
-      "createdAt": "2025-12-21T14:29:08.900Z"
-    },
-    {
-      "id": "fa3109c9-147c-42c8-b954-433b45d77234",
-      "userId": "user-1",
-      "performanceId": "perf-1",
-      "performanceTitle": "오페라의 유령",
-      "venue": "Mega Arts Center",
-      "date": "2025-12-25",
-      "time": "19:00",
-      "seats": [
-        {
-          "seatId": "G-11",
-          "row": "G",
-          "number": 11,
-          "grade": "VIP",
-          "price": 150000
-        },
-        {
-          "seatId": "G-12",
-          "row": "G",
-          "number": 12,
-          "grade": "VIP",
-          "price": 150000
-        },
-        {
-          "seatId": "G-13",
-          "row": "G",
-          "number": 13,
-          "grade": "VIP",
-          "price": 150000
-        }
-      ],
-      "totalPrice": 450000,
-      "status": "confirmed",
-      "createdAt": "2025-12-21T14:31:29.701Z"
+      "status": "cancelled",
+      "createdAt": "2025-12-21T18:04:56.179Z"
     }
   ]
 }

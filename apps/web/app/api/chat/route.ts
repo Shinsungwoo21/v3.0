@@ -23,11 +23,18 @@ Markdown 형식을 사용하여 가독성 좋은 답변을 제공하세요.
   - **중요:** 사용자가 "R석" 등 **좌석 등급**을 언급했을 때, 이를 **좌석 번호(예: R-1)**로 착각하여 존재하지 않는 좌석을 만들어내지 마십시오.
   - 반드시 \`get_ticket_availability\` 도구의 결과(\`details\`)에 실제로 존재하는 좌석 ID만 추천해야 합니다. (예: R등급은 C, D, E열일 수 있음)
   - 사용자의 요청이 "좌석 등급(예: R석)"인지 "특정 좌석 번호(예: R-15)"인지 모호하다면, 추측하지 말고 **"말씀하신 내용이 R등급 좌석을 의미하시나요, 아니면 R-15번 좌석을 의미하시나요?"**라고 사용자에게 확인 질문을 하십시오.
-  - \`create_holding\` 성공은 예약 완료가 아닙니다. **"선점"** 상태일 뿐입니다.
-  - 사용자가 **"예약 확정"** 버튼을 누르거나 명시적으로 확정 의사를 밝힐 때까지 절대 "예약이 완료되었습니다"라고 말하지 마세요.
-  - 예약 확정 요청이 오면 \`confirm_reservation\` 도구를 사용하세요. 이 도구의 결과가 \`success: true\`일 때만 "예약이 확정되었습니다"라고 말할 수 있습니다.
+   - \`create_holding\` 성공은 예약 완료가 아닙니다. **"선점"** 상태일 뿐입니다.
+   - **좌석 선점 후 (create_holding):**
+  - "선점이 완료되었습니다. 1분 내에 '예약 확정'이라고 말씀해 주세요."라고 안내하십시오.
+  - **절대** 가상의 결제 링크나 URL(예: ticketing.example.com)을 생성하여 제공하지 마십시오. 오직 '예약 확정' 발화만 유도하십시오.
+  - 좌석이 선점된 상태에서는 "예약 확정" 버튼이 UI에 표시되므로, 이를 누르거나 말로 하라고 안내하면 됩니다."예약이 완료되었습니다"라고 말하지 마세요.
+   - 예약 확정 요청이 오면 \`confirm_reservation\` 도구를 사용하세요. 이 도구의 결과가 \`success: true\`일 때만 "예약이 확정되었습니다"라고 말할 수 있습니다.
 - 좌석이 중복 선점된 경우, 다른 좌석을 제안하세요.
-- **예약 취소 요청 시:** 즉시 \`release_holding\` 도구를 사용하여 선점을 해제하고 결과를 알려주세요.`;
+- **예약 취소 요청 시:** 즉시 \`release_holding\` 도구를 사용하여 선점을 해제하고 결과를 알려주세요.
+- **좌석 변경 요청 시 (중요):**
+  1. 현재 선점된 좌석이 있다면 반드시 \`release_holding\`을 먼저 수행하십시오.
+  2. 해제가 완료되면, 그제서야 새로운 좌석에 대해 \`create_holding\`을 수행하십시오.
+  3. 답변할 때는 **"이전 좌석의 선점을 해제하고, 새로운 좌석을 선점했습니다."** 라고 명확히 언급하여 사용자가 변경 절차를 인지하도록 하십시오.`;
 
 async function processConverseStream(
     messages: Message[],
@@ -154,6 +161,16 @@ async function processConverseStream(
 
                         // Capture metadata if create_holding
                         if (toolName === 'create_holding' && result.success) {
+                            // [Fix] Inject auto-released holdings first
+                            if (result.releasedHoldings && Array.isArray(result.releasedHoldings)) {
+                                result.releasedHoldings.forEach((releasedId: string) => {
+                                    actionsToInject.push({
+                                        type: "HOLDING_RELEASED",
+                                        holdingId: releasedId
+                                    });
+                                });
+                            }
+
                             const expiresAtTime = new Date(result.expiresAt).getTime();
                             const nowTime = Date.now();
                             const remainingMs = expiresAtTime - nowTime;
@@ -163,6 +180,14 @@ async function processConverseStream(
                                 holdingId: result.holdingId,
                                 expiresAt: result.expiresAt,
                                 remainingMs: remainingMs > 0 ? remainingMs : 60000 // Fallback to 60s if invalid
+                            });
+                        }
+
+                        // Capture metadata if confirm_reservation
+                        if (toolName === 'confirm_reservation' && result.success) {
+                            actionsToInject.push({
+                                type: "RESERVATION_CONFIRMED",
+                                reservationId: result.reservationId
                             });
                         }
 
@@ -190,17 +215,19 @@ async function processConverseStream(
                             actionData.remainingMs = remainingMs > 0 ? remainingMs : 0;
                         }
 
-                        // Stream each action individually
+                        // Stream each action individually with a small delay to ensure UI updates are perceived
                         const metadataString = `\n<!-- ACTION_DATA: ${JSON.stringify(actionData)} -->`;
                         controller.enqueue(new TextEncoder().encode(metadataString));
+
+                        // Add 1000ms delay between actions (e.g. Release -> Create) so user clearly sees the transition
+                        await new Promise(resolve => setTimeout(resolve, 1000));
                     }
                 }
-
-                // Recurse to generate next steps (e.g. Create holding text + action)
-                await processConverseStream(messages, systemPrompt, controller, depth + 1);
             }
-        }
 
+            // Recurse to generate next steps (e.g. Create holding text + action)
+            await processConverseStream(messages, systemPrompt, controller, depth + 1);
+        }
     } catch (e) {
         console.error("Stream Loop Error:", e);
         controller.error(e);

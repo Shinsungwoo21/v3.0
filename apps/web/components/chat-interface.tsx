@@ -354,22 +354,41 @@ export function ChatInterface() {
                                     </div>
 
                                     {/* Action Buttons for Assistant */}
-                                    {msg.role === 'assistant' && activeHolding && timeLeft > 0 && idx === messages.length - 1 && /<!-- ACTION_DATA: ([\s\S]*?) -->/.test(msg.content) && (
-                                        <div className="mt-2 ml-1 flex gap-2 animate-in fade-in slide-in-from-top-2">
-                                            <Button
-                                                onClick={() => handleActionClick('confirm')}
-                                                className="bg-orange-500 hover:bg-orange-600 text-white h-8 text-xs px-4 rounded-full shadow-sm"
-                                            >
-                                                예약 확정
-                                            </Button>
-                                            <Button
-                                                onClick={() => handleActionClick('cancel')}
-                                                variant="outline"
-                                                className="h-8 text-xs border-orange-200 text-orange-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 px-4 rounded-full bg-white transition-colors"
-                                            >
-                                                예약 취소
-                                            </Button>
-                                        </div>
+                                    {msg.role === 'assistant' && idx === messages.length - 1 && (
+                                        <>
+                                            {/* Holding Actions (Confirm/Cancel) */}
+                                            {activeHolding && timeLeft > 0 && /<!-- ACTION_DATA: [\s\S]*?"type":\s*"HOLDING_CREATED"[\s\S]*?-->/.test(msg.content) && (
+                                                <div className="mt-2 ml-1 flex gap-2 animate-in fade-in slide-in-from-top-2">
+                                                    <Button
+                                                        onClick={() => handleActionClick('confirm')}
+                                                        className="bg-orange-500 hover:bg-orange-600 text-white h-8 text-xs px-4 rounded-full shadow-sm"
+                                                    >
+                                                        예약 확정
+                                                    </Button>
+                                                    <Button
+                                                        onClick={() => handleActionClick('cancel')}
+                                                        variant="outline"
+                                                        className="h-8 text-xs border-orange-200 text-orange-600 hover:bg-red-50 hover:text-red-600 hover:border-red-200 px-4 rounded-full bg-white transition-colors"
+                                                    >
+                                                        예약 취소
+                                                    </Button>
+                                                </div>
+                                            )}
+
+                                            {/* Reservation Confirmed Link */}
+                                            {/<!-- ACTION_DATA: [\s\S]*?"type":\s*"RESERVATION_CONFIRMED"[\s\S]*?-->/.test(msg.content) && (
+                                                <div className="mt-2 ml-1 animate-in fade-in slide-in-from-top-2">
+                                                    <Button
+                                                        asChild
+                                                        className="bg-green-600 hover:bg-green-700 text-white h-9 text-xs px-5 rounded-full shadow-sm font-semibold"
+                                                    >
+                                                        <a href="/my">
+                                                            내 예약 확인하기
+                                                        </a>
+                                                    </Button>
+                                                </div>
+                                            )}
+                                        </>
                                     )}
                                 </div>
                             </div>
