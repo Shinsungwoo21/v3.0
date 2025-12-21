@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
                 {
                     success: false,
                     error: "SEATS_ALREADY_HELD",
-                    message: result.error
+                    message: result.error,
+                    unavailableSeats: result.unavailableSeats
                 },
                 { status: 409 }
             );

@@ -132,15 +132,33 @@ export function createHolding(
     userId: string,
     date: string,
     time: string
-): { success: boolean; holdingId?: string; error?: string; expiresAt?: string } {
+): { success: boolean; holdingId?: string; error?: string; expiresAt?: string; unavailableSeats?: string[] } {
 
     const seatIds = seats.map(s => s.seatId);
+
+    // Validate Seat Existence (Rows A-J, Numbers 1-20)
+    const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const invalidSeats = seatIds.filter(id => {
+        const [row, numStr] = id.split('-');
+        const num = parseInt(numStr, 10);
+        return !ROWS.includes(row) || isNaN(num) || num < 1 || num > 20;
+    });
+
+    if (invalidSeats.length > 0) {
+        return {
+            success: false,
+            error: `존재하지 않는 좌석 번호입니다: ${invalidSeats.join(', ')}. 올바른 좌석 번호(예: A-1 ~ J-20)를 입력해 주세요.`,
+            unavailableSeats: invalidSeats
+        };
+    }
+
     const { available, conflicts } = areSeatsAvailable(performanceId, seatIds);
 
     if (!available) {
         return {
             success: false,
-            error: `이미 예약된 좌석입니다: ${conflicts.join(', ')}`
+            error: `이미 예약된 좌석입니다: ${conflicts.join(', ')}`,
+            unavailableSeats: conflicts
         };
     }
 
@@ -187,7 +205,7 @@ export function releaseHolding(holdingId: string): boolean {
 }
 
 // 6. Confirm Reservation (Move from Holding to Reserved)
-export function confirmResercation(
+export function confirmReservation(
     holdingId: string,
     performanceTitle: string,
     venue: string
@@ -232,6 +250,16 @@ export function getSeatStatusMap(performanceId: string): Record<string, 'reserve
     cleanupExpiredHoldings();
 
     const statusMap: Record<string, 'reserved' | 'holding' | 'available'> = {};
+
+    // Mock Seat Map Generation (A-J rows, 1-20 seats)
+    const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+    const SEATS_PER_ROW = 20;
+
+    ROWS.forEach(row => {
+        for (let i = 1; i <= SEATS_PER_ROW; i++) {
+            statusMap[`${row}-${i}`] = 'available';
+        }
+    });
 
     // Reserved
     const reservationData = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);

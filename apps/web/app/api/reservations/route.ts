@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { confirmResercation, getUserReservations } from "@/lib/server/holding-manager";
+import { confirmReservation, getUserReservations } from "@/lib/server/holding-manager";
 
 export async function POST(request: NextRequest) {
     try {
@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        const result = confirmResercation(holdingId, performanceTitle, venue);
+        const result = confirmReservation(holdingId, performanceTitle, venue);
 
         if (!result.success) {
             return NextResponse.json(

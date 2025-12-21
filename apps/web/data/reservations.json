@@ -1,3 +1,116 @@
 {
-  "reservations": []
+  "reservations": [
+    {
+      "id": "cf22117d-0757-46e8-8d04-230b5831b75b",
+      "userId": "user-1",
+      "performanceId": "perf-1",
+      "performanceTitle": "오페라의 유령",
+      "venue": "Mega Arts Center",
+      "date": "2025-12-25",
+      "time": "19:00",
+      "seats": [
+        {
+          "seatId": "I-9",
+          "row": "I",
+          "number": 9,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "I-10",
+          "row": "I",
+          "number": 10,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "I-11",
+          "row": "I",
+          "number": 11,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "I-12",
+          "row": "I",
+          "number": 12,
+          "grade": "VIP",
+          "price": 150000
+        }
+      ],
+      "totalPrice": 600000,
+      "status": "confirmed",
+      "createdAt": "2025-12-21T14:19:17.211Z"
+    },
+    {
+      "id": "9396941e-0ec5-4502-80ec-c692750e9a13",
+      "userId": "$USERID",
+      "performanceId": "perf-2",
+      "performanceTitle": "오페라의 유령",
+      "venue": "Mega Arts Center",
+      "date": "2025-12-24",
+      "time": "15:00",
+      "seats": [
+        {
+          "seatId": "F-8",
+          "row": "F",
+          "number": 8,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "F-9",
+          "row": "F",
+          "number": 9,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "F-10",
+          "row": "F",
+          "number": 10,
+          "grade": "VIP",
+          "price": 150000
+        }
+      ],
+      "totalPrice": 450000,
+      "status": "confirmed",
+      "createdAt": "2025-12-21T14:29:08.900Z"
+    },
+    {
+      "id": "fa3109c9-147c-42c8-b954-433b45d77234",
+      "userId": "user-1",
+      "performanceId": "perf-1",
+      "performanceTitle": "오페라의 유령",
+      "venue": "Mega Arts Center",
+      "date": "2025-12-25",
+      "time": "19:00",
+      "seats": [
+        {
+          "seatId": "G-11",
+          "row": "G",
+          "number": 11,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "G-12",
+          "row": "G",
+          "number": 12,
+          "grade": "VIP",
+          "price": 150000
+        },
+        {
+          "seatId": "G-13",
+          "row": "G",
+          "number": 13,
+          "grade": "VIP",
+          "price": 150000
+        }
+      ],
+      "totalPrice": 450000,
+      "status": "confirmed",
+      "createdAt": "2025-12-21T14:31:29.701Z"
+    }
+  ]
 }

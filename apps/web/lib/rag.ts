@@ -30,55 +30,64 @@ export interface Performance {
  * @param query User's search query
  * @returns Formatted context string for LLM
  */
+// Mock Data for Prototype
+const MOCK_PERFORMANCES: Performance[] = [
+    {
+        concertId: "perf-1",
+        title: "오페라의 유령",
+        artist: "조승우, 최재림",
+        date: "2025-12-25",
+        time: "19:00",
+        venue: "샤롯데씨어터",
+        price: 150000,
+        description: "전 세계를 매혹시킨 불멸의 명작, 오페라의 유령! [가격] VIP석 150,000원 / R석 120,000원 / S석 90,000원 / A석 60,000원"
+    },
+    {
+        concertId: "perf-2",
+        title: "호두까기 인형",
+        artist: "국립발레단",
+        date: "2025-12-24",
+        time: "15:00",
+        venue: "예술의전당 오페라극장",
+        price: 80000,
+        description: "크리스마스 시즌 최고의 선물, 호두까기 인형. [가격] VIP석 100,000원 / R석 80,000원 / S석 50,000원"
+    },
+    {
+        concertId: "perf-3",
+        title: "오페라의 유령",
+        artist: "김주택, 전동석",
+        date: "2025-12-24",
+        time: "19:30",
+        venue: "샤롯데씨어터",
+        price: 150000,
+        description: "전 세계를 매혹시킨 불멸의 명작, 오페라의 유령! [가격] VIP석 150,000원 / R석 120,000원 / S석 90,000원 / A석 60,000원"
+    }
+];
+
 export async function searchPerformances(query: string): Promise<string> {
     try {
-        // For small datasets, Scan is acceptable.
-        // In production with large data, use Query + GSI or OpenSearch.
-        const command = new ScanCommand({
-            TableName: TABLE_NAME,
-        });
-
-        const response = await docClient.send(command);
-        const items = (response.Items || []) as Performance[];
-
-        if (items.length === 0) {
-            return "";
-        }
-
-        // Simple keyword matching (in-memory filtering for better control over Korean text if needed)
-        // We check if title, artist, or description contains parts of the query.
-        // Normalized to lowercase for case-insensitivity.
+        // Mock Search Implementation
         const normalizedQuery = query.toLowerCase();
-
-        // Split query into words to find partial matches
         const keywords = normalizedQuery.split(/\s+/).filter(k => k.length > 0);
 
-        const relevantItems = items.filter(item => {
-            const text = `${item.title} ${item.artist} ${item.description}`.toLowerCase();
-            // Returns true if ANY keyword is found in the item text
+        const relevantItems = MOCK_PERFORMANCES.filter(item => {
+            const text = `${item.title} ${item.artist} ${item.description} ${item.venue}`.toLowerCase();
             return keywords.some(keyword => text.includes(keyword));
         });
 
-        // If no specific match, maybe return top upcoming events? 
-        // For now, if no match, return empty string so the LLM relies on its general knowledge 
-        // or says "I don't know".
-        // OR: if the query implies "all concerts" or "recommend", we could return all.
-        // Let's stick to keyword matching.
-
         if (relevantItems.length === 0) {
-            // Fallback: If query contains "추천" (recommend) or "목록" (list), return top 3 items
+            // Fallback: If query implies recommendations
             if (normalizedQuery.includes("추천") || normalizedQuery.includes("목록") || normalizedQuery.includes("공연")) {
-                return formatContext(items.slice(0, 3));
+                return formatContext(MOCK_PERFORMANCES);
             }
             return "";
         }
 
-        // Limit to top 3 results to save tokens
-        return formatContext(relevantItems.slice(0, 3));
+        return formatContext(relevantItems);
 
     } catch (error) {
-        console.error("Error searching DynamoDB:", error);
-        return ""; // Fail gracefully without context
+        console.error("Error searching mock data:", error);
+        return "";
     }
 }
 

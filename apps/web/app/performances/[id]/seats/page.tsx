@@ -91,7 +91,7 @@ export default function SeatsPage() {
             {/* Error Alert Overlay */}
             {showError && errorMsg && (
                 <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[9999] animate-in fade-in zoom-in duration-300 pointer-events-none">
-                    <div className="bg-red-500/90 text-white px-8 py-4 rounded-full shadow-2xl backdrop-blur-sm flex items-center gap-3">
+                    <div className="bg-red-400/90 text-white px-8 py-4 rounded-full shadow-2xl backdrop-blur-sm flex items-center gap-3">
                         <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
                         <span className="font-bold text-lg">{errorMsg}</span>
                     </div>

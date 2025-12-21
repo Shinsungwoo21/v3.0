@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import { VenueData, Seat } from "@/types/venue" // Removed unused Grade import
 import { TheaterTemplate } from "./templates/theater-template"
 import { SeatLegend } from "./seat-legend"
@@ -24,14 +24,22 @@ export function SeatMap({ venueId, performanceId, date, onSelectionComplete }: S
 
     const [showMaxAlert, setShowMaxAlert] = useState(false)
 
-    const fetchVenueData = useCallback(async () => {
-        setLoading(true)
+    // Request ID for race condition protection
+    const lastRequestIdRef = useRef<number>(0);
+
+    const fetchVenueData = useCallback(async (silent = false) => {
+        const requestId = ++lastRequestIdRef.current;
+        if (!silent) setLoading(true)
         try {
             // 1. Get Mock Venue Data
             const data = JSON.parse(JSON.stringify(sampleTheater)) as VenueData;
 
             // 2. Get Real-time Seat Status (Add timestamp to prevent caching)
             const statusRes = await fetch(`/api/seats/${performanceId}?t=${new Date().getTime()}`, { cache: 'no-store' });
+
+            // Race Condition Check: If a newer request started, ignore this response
+            if (requestId !== lastRequestIdRef.current) return;
+
             if (statusRes.ok) {
                 const statusData = await statusRes.json();
                 const statusMap = statusData.seats;
@@ -52,12 +60,33 @@ export function SeatMap({ venueId, performanceId, date, onSelectionComplete }: S
         } catch (error) {
             console.error("Failed to load seat data", error);
         } finally {
-            setLoading(false);
+            if (requestId === lastRequestIdRef.current) {
+                if (!silent) setLoading(false);
+            }
         }
     }, [performanceId])
 
     useEffect(() => {
-        fetchVenueData();
+        fetchVenueData(false);
+
+        // Polling every 3 seconds
+        const interval = setInterval(() => {
+            fetchVenueData(true);
+        }, 3000);
+
+        // Custom Event Listener for instant refresh
+        const handleRefresh = () => {
+            // Add small delay to ensure server write completes
+            setTimeout(() => {
+                fetchVenueData(true);
+            }, 50);
+        };
+        window.addEventListener('REFRESH_SEAT_MAP', handleRefresh);
+
+        return () => {
+            clearInterval(interval);
+            window.removeEventListener('REFRESH_SEAT_MAP', handleRefresh);
+        }
     }, [fetchVenueData])
 
     useEffect(() => {
@@ -136,7 +165,7 @@ export function SeatMap({ venueId, performanceId, date, onSelectionComplete }: S
                     size="sm"
                     variant="secondary"
                     className="absolute right-4 top-1/2 -translate-y-1/2 h-8 text-xs font-medium bg-white/90 hover:bg-white text-gray-800 gap-1.5 transition-all active:scale-95"
-                    onClick={fetchVenueData}
+                    onClick={() => fetchVenueData(false)}
                     disabled={loading}
                 >
                     <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
