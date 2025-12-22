@@ -5,6 +5,7 @@ import { useSearchParams, useRouter, useParams } from "next/navigation"
 import { reservationStore } from "@/lib/reservation-store"
 import { Seat } from "@/types/venue"
 import { useState, useEffect } from "react"
+import { PERFORMANCES } from "@/lib/performance-data"
 
 export default function SeatsPage() {
     const params = useParams()
@@ -12,8 +13,17 @@ export default function SeatsPage() {
     const router = useRouter()
 
     const performanceId = params.id as string
-    const date = searchParams.get("date") || "2025-12-25" // Default mockup date
-    const time = searchParams.get("time") || "19:00"
+
+    // Get Performance Data to determine valid default date/time
+    const performanceKey = performanceId.startsWith("perf-kinky") ? "perf-kinky-1" : "perf-1"
+    const performance = PERFORMANCES[performanceKey]
+
+    // Default to the first available schedule if no date provided
+    const defaultDate = performance?.schedules[0]?.date || "2025-12-25"
+    const defaultTime = performance?.schedules[0]?.times[0]?.time || "19:00"
+
+    const date = searchParams.get("date") || defaultDate
+    const time = searchParams.get("time") || defaultTime
 
     const [isSubmitting, setIsSubmitting] = useState(false)
     const [errorMsg, setErrorMsg] = useState<string | null>(null) // State for alert message

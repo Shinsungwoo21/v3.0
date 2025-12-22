@@ -7,10 +7,10 @@ import { ScrollToTop } from "@/components/scroll-to-top"
 
 export default function Home() {
   const newArrivals = [
+    { id: "perf-kinky-1", title: "킹키부츠", category: "뮤지컬", discount: "15%", price: "144,500원", badge: "NEW", image: "/posters/kinky-boots.png" },
+    { id: "perf-1", title: "오페라의 유령", category: "뮤지컬", discount: "20%", price: "120,000원", badge: "HOT", image: "/posters/opera.png" },
     { title: "세상 끝의 카페(용인)", category: "뮤지컬", discount: "45%", price: "36,300원", badge: "NEW" },
     { title: "옥탑방 고양이(대구)", category: "연극", discount: "50%", price: "20,000원", badge: "NEW" },
-    { title: "어쩌다 보니", category: "연극", discount: "64%", price: "18,000원", badge: "NEW" },
-    { title: "그대와 영원히(대전)", category: "뮤지컬", discount: "20%", price: "32,000원", badge: "NEW" },
   ]
 
   const activities = [
@@ -91,28 +91,42 @@ export default function Home() {
 }
 
 function SimpleCard({ item, bgWhite = false }: { item: any, bgWhite?: boolean }) {
+  const CardWrapper = ({ children }: { children: React.ReactNode }) => {
+    if (item.id) {
+      // Next.js Link로 감싸기 위해 동적 import 대신 a 태그 사용
+      return <a href={`/performances/${item.id}`} className="block">{children}</a>
+    }
+    return <>{children}</>
+  }
+
   return (
-    <Card className={`group border-none shadow-none bg-transparent hover:bg-transparent`}>
-      <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-200 mb-3 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
-        {item.badge && (
-          <div className="absolute top-3 left-3 z-10 bg-yellow-400 text-black text-xs font-bold px-2 py-1 rounded">
-            {item.badge}
+    <CardWrapper>
+      <Card className={`group border-none shadow-none bg-transparent hover:bg-transparent cursor-pointer`}>
+        <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-gray-200 mb-3 shadow-sm group-hover:shadow-md transition-all group-hover:-translate-y-1">
+          {item.badge && (
+            <div className={`absolute top-3 left-3 z-10 ${item.badge === 'HOT' ? 'bg-red-500 text-white' : 'bg-yellow-400 text-black'} text-xs font-bold px-2 py-1 rounded`}>
+              {item.badge}
+            </div>
+          )}
+          {item.image ? (
+            <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
+              Image
+            </div>
+          )}
+        </div>
+        <div className="space-y-1.5 px-1">
+          <p className="text-xs text-muted-foreground font-medium">{item.category}</p>
+          <h3 className="font-bold text-lg line-clamp-1 group-hover:text-primary transition-colors">
+            {item.title}
+          </h3>
+          <div className="flex items-center gap-2 pt-1">
+            {item.discount && <span className="text-xl font-bold text-red-500">{item.discount}</span>}
+            <span className="text-lg font-bold text-gray-900">{item.price}</span>
           </div>
-        )}
-        <div className="w-full h-full flex items-center justify-center text-gray-400 bg-gray-100">
-          Image
         </div>
-      </div>
-      <div className="space-y-1.5 px-1">
-        <p className="text-xs text-muted-foreground font-medium">{item.category}</p>
-        <h3 className="font-bold text-lg line-clamp-1 group-hover:text-primary transition-colors">
-          {item.title}
-        </h3>
-        <div className="flex items-center gap-2 pt-1">
-          {item.discount && <span className="text-xl font-bold text-red-500">{item.discount}</span>}
-          <span className="text-lg font-bold text-gray-900">{item.price}</span>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </CardWrapper>
   )
 }

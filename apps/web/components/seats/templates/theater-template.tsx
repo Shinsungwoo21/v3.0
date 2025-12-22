@@ -52,14 +52,17 @@ export function TheaterTemplate({ venueData, selectedSeats, selectedFloor, onSea
                         let transformStyle = {};
                         let marginStyle = "";
 
-                        if (section.sectionId === 'A') {
+                        const isLeft = ['A', 'D'].includes(section.sectionId);
+                        const isRight = ['C', 'F'].includes(section.sectionId);
+
+                        if (isLeft) {
                             transformStyle = { transform: 'rotate(10deg)' };
                             marginStyle = "mt-4 mr-1";
-                        } else if (section.sectionId === 'C') {
+                        } else if (isRight) {
                             transformStyle = { transform: 'rotate(-10deg)' };
                             marginStyle = "mt-4 ml-1";
                         } else {
-                            // Section B - A구역 1열과 같은 높이로 맞추기 위해 아래로 내림
+                            // Section B & E
                             transformStyle = { transform: 'none' };
                             marginStyle = "z-10 mt-12";
                         }

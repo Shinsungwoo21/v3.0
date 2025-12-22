@@ -20,6 +20,7 @@ type ActionData =
         holdingId: string;
         expiresAt: string;
         remainingMs?: number;
+        seatMapUrl?: string;
     }
     | {
         type: "HOLDING_RELEASED";
@@ -28,7 +29,10 @@ type ActionData =
         remainingMs?: number;
     };
 
+import { useAuth } from "@/contexts/auth-context";
+
 export function ChatInterface() {
+    const { user } = useAuth();
     const [messages, setMessages] = useState<Message[]>([]);
     const [input, setInput] = useState("");
     const [isLoading, setIsLoading] = useState(false);
@@ -189,7 +193,8 @@ export function ChatInterface() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     messages: apiMessages,
-                    modelId: modelId
+                    modelId: modelId,
+                    userId: user?.id // Pass current user ID
                 }),
             });
 
@@ -372,6 +377,17 @@ export function ChatInterface() {
                                                     >
                                                         예약 취소
                                                     </Button>
+                                                    {activeHolding.type === 'HOLDING_CREATED' && activeHolding.seatMapUrl && (
+                                                        <Button
+                                                            asChild
+                                                            variant="outline"
+                                                            className="h-8 text-xs border-blue-200 text-blue-600 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-300 px-4 rounded-full bg-white transition-colors"
+                                                        >
+                                                            <a href={activeHolding.seatMapUrl} target="_blank" rel="noopener noreferrer">
+                                                                좌석 배치도 보기
+                                                            </a>
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             )}
 

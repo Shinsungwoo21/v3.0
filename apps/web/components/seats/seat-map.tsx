@@ -6,6 +6,7 @@ import { TheaterTemplate } from "./templates/theater-template"
 import { SeatLegend } from "./seat-legend"
 import { Button } from "@/components/ui/button"
 import { RotateCcw } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 // Mock import for now - in real app fetch from API
 import sampleTheater from "@/data/venues/sample-theater.json"
@@ -21,6 +22,7 @@ interface SeatMapProps {
 export function SeatMap({ venueId, performanceId, date, time, onSelectionComplete }: SeatMapProps) {
     const [venueData, setVenueData] = useState<VenueData | null>(null)
     const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([])
+    const [selectedFloor, setSelectedFloor] = useState<string>("1층")
     const [loading, setLoading] = useState(true)
 
     const [showMaxAlert, setShowMaxAlert] = useState(false)
@@ -160,6 +162,24 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
 
             {/* Stage Area */}
             <div className="w-full bg-black text-white h-14 relative flex items-center justify-center shadow-md z-1">
+                {/* Floor Tabs (Left) */}
+                <div className="absolute left-4 top-1/2 -translate-y-1/2 flex gap-1">
+                    {["1층", "2층"].map(floor => (
+                        <button
+                            key={floor}
+                            onClick={() => setSelectedFloor(floor)}
+                            className={cn(
+                                "px-3 py-1 rounded-md text-xs font-bold transition-all",
+                                selectedFloor === floor
+                                    ? "bg-white text-black"
+                                    : "text-gray-400 hover:text-white"
+                            )}
+                        >
+                            {floor}
+                        </button>
+                    ))}
+                </div>
+
                 <span className="font-bold tracking-widest text-lg">STAGE</span>
 
                 <Button
@@ -192,12 +212,13 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
                     background: hsl(var(--primary) / 0.8);
                 }
             `}</style>
-            <div className="flex-1 overflow-auto p-10 flex justify-center items-start custom-scrollbar">
+            <div className="flex-1 overflow-hidden flex flex-col items-center custom-scrollbar pt-0">
                 {venueData.venueType === 'theater' && (
                     <TheaterTemplate
-                        key={loading ? 'loading' : `loaded-${venueData.totalSeats}-${selectedSeatIds.length}-${new Date().getTime()}`}
+                        key={venueData.venueId}
                         venueData={venueData}
                         selectedSeats={selectedSeatIds}
+                        selectedFloor={selectedFloor}
                         onSeatClick={handleSeatClick}
                     />
                 )}

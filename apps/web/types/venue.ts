@@ -1,6 +1,6 @@
 export type VenueType = 'concert-hall' | 'theater' | 'arena';
 
-export type SeatStatus = 'available' | 'selected' | 'reserved' | 'holding' | 'disabled';
+export type SeatStatus = 'available' | 'selected' | 'reserved' | 'holding' | 'disabled' | 'empty';
 
 export interface Seat {
     seatId: string;
@@ -22,6 +22,7 @@ export interface Row {
 export interface Section {
     sectionId: string;
     sectionName: string;
+    floor: string; // "1층" | "2층"
     rows: Row[];
 }
 

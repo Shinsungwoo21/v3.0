@@ -16,6 +16,7 @@ const statusStyles: Record<SeatStatus, string> = {
     reserved: 'bg-gray-300 border-gray-300 text-gray-500 cursor-not-allowed',
     holding: 'bg-yellow-300 border-yellow-400 text-yellow-900 cursor-not-allowed',
     disabled: 'bg-gray-100 border-gray-200 opacity-50 cursor-not-allowed',
+    empty: 'invisible pointer-events-none border-none',
 };
 
 export function SeatButton({ seat, grade, isSelected, onClick }: SeatButtonProps) {
