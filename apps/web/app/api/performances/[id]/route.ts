@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPerformance } from "@/lib/server/services/performance-service";
+import { getPerformance } from "@/lib/server/performance-service";
 
 export async function GET(
     request: NextRequest,

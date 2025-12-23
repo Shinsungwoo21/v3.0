@@ -9,7 +9,7 @@ import { RotateCcw } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 // Mock import for now - in real app fetch from API
-import sampleTheater from "@/data/venues/sample-theater.json"
+import sampleTheater from "@/data/venues/charlotte-theater.json"
 
 interface SeatMapProps {
     venueId: string;
@@ -36,7 +36,25 @@ export function SeatMap({ venueId, performanceId, date, time, isSubmitting, onSe
         if (!silent) setLoading(true)
         try {
             // 1. Get Mock Venue Data (Fallback)
+            // We use JSON.parse(JSON.stringify()) to create a deep copy we can modify (adding seats)
             const data = JSON.parse(JSON.stringify(sampleTheater)) as VenueData;
+
+            // Generate Seats if empty (Auto-generate based on length property in JSON)
+            data.sections.forEach(section => {
+                section.rows.forEach((row: any) => {
+                    // Check if seats are empty but length is provided
+                    if ((!row.seats || row.seats.length === 0) && row.length) {
+                        const length = row.length;
+                        row.seats = Array.from({ length }, (_, i) => ({
+                            seatId: `${section.sectionId}-${row.rowId}-${i + 1}`,
+                            seatNumber: i + 1,
+                            rowId: row.rowId,
+                            grade: row.grade,
+                            status: 'available'
+                        }));
+                    }
+                });
+            });
 
             // Try fetching real venue data if API available (for V5)
             // try {

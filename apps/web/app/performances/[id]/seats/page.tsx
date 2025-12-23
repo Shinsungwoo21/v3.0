@@ -6,6 +6,7 @@ import { reservationStore } from "@/lib/reservation-store"
 import { Seat } from "@/types/venue"
 import { useState, useEffect } from "react"
 import { PERFORMANCES } from "@/lib/performance-data"
+import { Loader2 } from "lucide-react"
 
 export default function SeatsPage() {
     const params = useParams()
@@ -42,6 +43,7 @@ export default function SeatsPage() {
 
     // State for dynamic performance data
     const [performanceTitle, setPerformanceTitle] = useState("")
+    const [loading, setLoading] = useState(true)
 
     useEffect(() => {
         // Fetch performance details to get title
@@ -49,9 +51,22 @@ export default function SeatsPage() {
             .then(res => res.json())
             .then(data => {
                 if (data.title) setPerformanceTitle(data.title)
+                setLoading(false)
             })
-            .catch(console.error)
+            .catch(err => {
+                console.error(err)
+                setLoading(false)
+            })
     }, [performanceId])
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <p className="text-lg font-medium text-gray-600 animate-pulse">좌석 정보를 불러오는 중입니다...</p>
+            </div>
+        )
+    }
 
     const handleSelectionComplete = async (selectedSeats: Seat[], totalPrice: number) => {
         if (isSubmitting) return

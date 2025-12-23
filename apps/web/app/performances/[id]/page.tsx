@@ -45,7 +45,7 @@ export default async function PerformancePage({ params }: { params: { id: string
                     <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
                     {/* Content Container */}
-                    <div className="container mx-auto px-4 md:px-8 max-w-5xl h-full relative z-10 flex items-center">
+                    <div className="container mx-auto px-4 md:px-8 max-w-7xl h-full relative z-10 flex items-center">
                         <div className="flex flex-col md:flex-row gap-8 items-end md:items-center">
                             {/* Poster Image */}
                             <div className="w-[180px] md:w-[260px] aspect-[3/4] relative rounded-lg shadow-2xl overflow-hidden border-2 border-white/20 flex-shrink-0">
@@ -78,7 +78,7 @@ export default async function PerformancePage({ params }: { params: { id: string
                 </div>
 
                 {/* Detail Content Section */}
-                <div className="container mx-auto px-4 md:px-8 max-w-5xl py-12">
+                <div className="container mx-auto px-4 md:px-8 max-w-7xl py-12">
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                         {/* Left Column: Information */}
                         <div className="lg:col-span-2 space-y-10">
@@ -122,8 +122,27 @@ export default async function PerformancePage({ params }: { params: { id: string
                                         </div>
                                         <div className="space-y-2 pt-2">
                                             <span className="text-gray-500 block text-sm">티켓 가격</span>
-                                            <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-sm text-gray-700 whitespace-pre-line">
-                                                {(performance.price || "").replace(/ \/ /g, '\n')}
+                                            <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm text-gray-700">
+                                                {(performance.price || "").split(" / ").map((priceItem, idx) => {
+                                                    const [grade, ...rest] = priceItem.trim().split(" ");
+                                                    const cost = rest.join(" ");
+                                                    let badgeColor = "bg-gray-500";
+                                                    if (grade.includes("OP")) badgeColor = "bg-purple-600";
+                                                    else if (grade.includes("VIP")) badgeColor = "bg-rose-500";
+                                                    else if (grade.includes("R")) badgeColor = "bg-green-600";
+                                                    else if (grade.includes("S")) badgeColor = "bg-blue-500";
+                                                    else if (grade.includes("A")) badgeColor = "bg-yellow-500";
+
+                                                    return (
+                                                        <div key={idx} className="flex items-center justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className={`w-3 h-3 rounded-none ${badgeColor}`} />
+                                                                <span className="font-medium text-gray-600">{grade}</span>
+                                                            </div>
+                                                            <span className="font-bold text-gray-900">{cost}</span>
+                                                        </div>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </div>

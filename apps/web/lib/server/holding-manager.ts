@@ -148,16 +148,21 @@ export function createHolding(
     // New format check logic...
     const invalidSeats = seatIds.filter(id => {
         const parts = id.split('-');
+        // New format: Section-Row-SeatNum (e.g., "A-1-1")
+        if (parts.length === 3) {
+            const [section, row, seatNum] = parts;
+            const seatNumber = parseInt(seatNum, 10);
+            return !section || !row || isNaN(seatNumber);
+        }
+        // Legacy/Alternative formats
         if (parts.length === 4) {
             const [floor, section, row, seatNum] = parts;
-            // Allow string row IDs (e.g. 'OP')
             const seatNumber = parseInt(seatNum, 10);
             return !floor || !section || !row || isNaN(seatNumber);
         } else if (parts.length === 2) {
-            const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
             const [row, numStr] = parts;
             const num = parseInt(numStr, 10);
-            return !ROWS.includes(row) || isNaN(num) || num < 1 || num > 20;
+            return !row || isNaN(num);
         }
         return true;
     });
@@ -328,32 +333,33 @@ export function getSeatStatusMap(performanceId: string, date: string, time: stri
     const statusMap: Record<string, 'reserved' | 'holding' | 'available'> = {};
 
     // venue.json load...
-    const VENUE_FILE = path.join(process.cwd(), 'data', 'venues', 'sample-theater.json');
+    const VENUE_FILE = path.join(process.cwd(), 'data', 'venues', 'charlotte-theater.json');
 
     try {
-        if (fs.existsSync(VENUE_FILE)) {
-            const venueData = JSON.parse(fs.readFileSync(VENUE_FILE, 'utf-8'));
-            venueData.sections?.forEach((section: any) => {
-                section.rows?.forEach((row: any) => {
-                    row.seats?.forEach((seat: any) => {
+        const venueData = JSON.parse(fs.readFileSync(VENUE_FILE, 'utf-8'));
+        venueData.sections?.forEach((section: any) => {
+            section.rows?.forEach((row: any) => {
+                // Check if explicit seats exist
+                if (row.seats && row.seats.length > 0) {
+                    row.seats.forEach((seat: any) => {
                         statusMap[seat.seatId] = 'available';
                     });
-                });
+                } else if (row.length) {
+                    // Generate seats dynamically based on length
+                    for (let i = 1; i <= row.length; i++) {
+                        // ID format: "1F-A-1" (Section-Row-Number)
+                        const seatId = `${section.sectionId}-${row.rowId}-${i}`;
+                        statusMap[seatId] = 'available';
+                    }
+                }
             });
-        }
+        });
     } catch (e) {
         console.error('[getSeatStatusMap] Error reading venue file:', e);
     }
 
     if (Object.keys(statusMap).length === 0) {
-        // fallback logic usually...
-        const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
-        const SEATS_PER_ROW = 20;
-        ROWS.forEach(row => {
-            for (let i = 1; i <= SEATS_PER_ROW; i++) {
-                statusMap[`${row}-${i}`] = 'available';
-            }
-        });
+        console.warn('[getSeatStatusMap] No seats found in venue file. Returning empty map.');
     }
 
     // Reserved
@@ -421,4 +427,34 @@ export function getUserReservations(userId: string): Reservation[] {
             posterUrl: perf?.posterUrl
         };
     });
+}
+
+// 10. Get Reservation Count for a specific slot
+export function getReservationCount(performanceId: string, date: string, time: string): number {
+    const data = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);
+    const count = data.reservations
+        .filter(r =>
+            r.performanceId === performanceId &&
+            r.date === date &&
+            r.time === time &&
+            r.status === 'confirmed'
+        )
+        .reduce((sum, r) => sum + r.seats.length, 0);
+
+    return count;
+}
+
+// 11. Get Reservation Counts Map for performance (Batch lookup)
+export function getReservationCounts(performanceId: string): Record<string, number> {
+    const data = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);
+    const counts: Record<string, number> = {};
+
+    data.reservations
+        .filter(r => r.performanceId === performanceId && r.status === 'confirmed')
+        .forEach(r => {
+            const key = `${r.date}:${r.time}`;
+            counts[key] = (counts[key] || 0) + r.seats.length;
+        });
+
+    return counts;
 }

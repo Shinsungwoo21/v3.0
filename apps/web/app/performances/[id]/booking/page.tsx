@@ -4,13 +4,15 @@ import { useState, useMemo, useEffect } from "react" // Added useEffect
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Users } from "lucide-react"
+import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Users, Loader2 } from "lucide-react"
 
 // import { PERFORMANCES } from "@/lib/performance-data" // Commented out
 import { notFound } from "next/navigation" // Added
 
 interface Performance {
     title: string;
+    poster: string;
+    venue: string;
     schedules: Array<{
         date: string;
         dayOfWeek: string;
@@ -61,7 +63,7 @@ export default function BookingPage() {
 
     // 해당 월의 스케줄 날짜들
     const scheduleDates = useMemo(() => {
-        return new Set(performance?.schedules.map(s => s.date) || [])
+        return new Set(performance?.schedules?.map(s => s.date) || [])
     }, [performance])
 
     // 선택된 날짜의 회차 정보
@@ -104,6 +106,15 @@ export default function BookingPage() {
     // 이전단계 클릭
     const handleBack = () => {
         router.push(`/performances/${id}`)
+    }
+
+    if (loading) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+                <Loader2 className="w-12 h-12 text-primary animate-spin" />
+                <p className="text-lg font-medium text-gray-600 animate-pulse">공연 정보를 불러오는 중입니다...</p>
+            </div>
+        )
     }
 
     if (!performance) {
