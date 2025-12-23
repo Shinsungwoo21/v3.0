@@ -7,6 +7,7 @@ export interface ReservationSession {
     time: string;
     seats: Seat[];
     totalPrice: number;
+    venue?: string; // Add venue for display
 }
 
 const STORAGE_KEY = "megaticket-reservation-session"

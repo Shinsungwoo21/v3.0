@@ -150,9 +150,9 @@ export function createHolding(
         const parts = id.split('-');
         if (parts.length === 4) {
             const [floor, section, row, seatNum] = parts;
-            const rowNum = parseInt(row, 10);
+            // Allow string row IDs (e.g. 'OP')
             const seatNumber = parseInt(seatNum, 10);
-            return !floor || !section || isNaN(rowNum) || isNaN(seatNumber);
+            return !floor || !section || !row || isNaN(seatNumber);
         } else if (parts.length === 2) {
             const ROWS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
             const [row, numStr] = parts;
@@ -180,14 +180,23 @@ export function createHolding(
     // 2. Check conflicts against valid holdings
     const conflicts: string[] = [];
     const heldSeatIds = new Set<string>();
-    validHoldings.filter(h => h.performanceId === performanceId).forEach(h => {
+    validHoldings.filter(h =>
+        h.performanceId === performanceId &&
+        h.date === date &&
+        h.time === time
+    ).forEach(h => {
         h.seats.forEach(s => heldSeatIds.add(s.seatId));
     });
 
     // Check against reservations (Read separate file)
     const reservationData = readJson<{ reservations: Reservation[] }>(RESERVATIONS_FILE);
     reservationData.reservations
-        .filter(r => r.performanceId === performanceId && r.status === 'confirmed')
+        .filter(r =>
+            r.performanceId === performanceId &&
+            r.date === date &&
+            r.time === time &&
+            r.status === 'confirmed'
+        )
         .forEach(r => r.seats.forEach(s => heldSeatIds.add(s.seatId))); // Treat reserved as held for conflict check
 
     seatIds.forEach(id => {

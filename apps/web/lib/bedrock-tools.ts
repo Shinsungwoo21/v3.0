@@ -45,7 +45,7 @@ export const BEDROCK_TOOLS: ToolConfiguration['tools'] = [
                     properties: {
                         performanceId: {
                             type: "string",
-                            description: "공연 ID (예: perf-1)"
+                            description: "공연 ID (예: perf-phantom-of-the-opera-1)"
                         },
                         date: {
                             type: "string",

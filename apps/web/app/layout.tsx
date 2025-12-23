@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { AuthProvider } from "@/contexts/auth-context";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
+import { RegionIndicator } from "@/components/region-indicator";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -24,6 +25,7 @@ export default function RootLayout({
             {children}
           </main>
           <SiteFooter />
+          <RegionIndicator region={process.env.AWS_REGION || "ap-northeast-2"} />
         </AuthProvider>
       </body>
     </html>

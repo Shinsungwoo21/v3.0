@@ -57,8 +57,8 @@ export default function ReservationConfirmPage() {
 
             if (diff <= 0) {
                 setTimeLeft(0)
-                // Only trigger timeout if it wasn't already 0 to avoid loops
-                if (timeLeft > 0) {
+                // Only trigger timeout if it wasn't already handled
+                if (!isTimeoutHandled.current) {
                     handleTimeout()
                 }
             } else {
@@ -75,6 +75,7 @@ export default function ReservationConfirmPage() {
     }, [session, holdingId, expiresAt])
 
     const isConfirmedRef = useRef(false) // Track if reservation is confirmed to prevent auto-release
+    const isTimeoutHandled = useRef(false) // Prevent multiple alerts
 
     // 3. Auto-release on unmount (Browser Back / Close)
     // 3. Auto-release on unmount (Browser Back / Close)
@@ -95,6 +96,7 @@ export default function ReservationConfirmPage() {
     */
 
     const handleTimeout = async () => {
+        isTimeoutHandled.current = true
         try {
             await fetch(`/api/holdings/${holdingId}`, { method: 'DELETE' })
             alert('예약 시간이 초과되었습니다. 다시 좌석을 선택해주세요.')
@@ -206,7 +208,7 @@ export default function ReservationConfirmPage() {
                         <div className="flex items-center gap-2 col-span-2">
                             <MapPin className="w-3.5 h-3.5 text-gray-500" />
                             <span className="font-medium text-gray-700">장소</span>
-                            <span>Mega Arts Center - Grand Theater</span>
+                            <span>{session.venue}</span>
                         </div>
                     </div>
 

@@ -1,177 +1,151 @@
-"use client"
 
 import Link from "next/link"
 import Image from "next/image"
-import { useParams } from "next/navigation"
+import { notFound } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Calendar, MapPin, Clock, Timer, Users, Phone } from "lucide-react"
+import { Calendar, Clock, MapPin, Info } from "lucide-react"
 
-// 공연 데이터 타입
-interface PerformanceData {
-    id: string
-    title: string
-    titleEn?: string
-    genre: string
-    image: string
-    dateRange: string
-    schedule: string
-    venue: string
-    description: string
-    price: string
-    runtime: string
-    ageLimit: string
-    producer?: string
-    contact?: string
-}
+import { SiteFooter } from "@/components/site-footer"
+import { getPerformance } from "@/lib/server/performance-service"
 
-// Mock 공연 데이터
-const PERFORMANCES: Record<string, PerformanceData> = {
-    "perf-1": {
-        id: "perf-1",
-        title: "오페라의 유령",
-        titleEn: "The Phantom of the Opera",
-        genre: "뮤지컬",
-        image: "/posters/opera.png",
-        dateRange: "2024.12.01 ~ 2025.03.31",
-        schedule: "화~금 19:30 / 토 14:00, 19:00 / 일 14:00, 18:00",
-        venue: "샤롯데씨어터",
-        description: "전 세계를 매혹시킨 불멸의 명작! 브로드웨이 최장기 공연 기네스북 등재. 앤드류 로이드 웨버의 역대급 뮤지컬 넘버와 화려한 무대 연출로 관객들의 마음을 사로잡는 감동의 대서사시.",
-        price: "VIP석 150,000원 / R석 120,000원 / S석 90,000원 / A석 60,000원",
-        runtime: "150분 (인터미션 20분)",
-        ageLimit: "8세 이상",
-        producer: "S&CO",
-        contact: "1588-5212"
-    },
-    "perf-kinky-1": {
-        id: "perf-kinky-1",
-        title: "킹키부츠",
-        titleEn: "Kinky Boots",
-        genre: "뮤지컬",
-        image: "/posters/kinky-boots.png",
-        dateRange: "2026.02.10 ~ 2026.04.30",
-        schedule: "화, 목, 금 19:30 / 수 14:30, 19:30 / 토, 일, 공휴일 14:00, 19:00 / 월 공연 없음",
-        venue: "샤롯데시어터",
-        description: "토니상 6관왕 수상작! 아버지로부터 물려받은 구두 공장의 위기를 극복하기 위해, 평범한 청년 찰리와 화려한 드래그퀸 롤라가 만나 세상에 없던 특별한 구두 '킹키부츠'를 만들어가는 이야기. 신디 로퍼 작곡의 감동적인 브로맨스!",
-        price: "VIP/OP석 170,000원 / R석 140,000원 / S석 110,000원 / A석 80,000원",
-        runtime: "155분 (인터미션 20분)",
-        ageLimit: "8세 이상 관람가",
-        producer: "CJ ENM, 롯데컬처웍스 주식회사",
-        contact: "1588-5212"
+export default async function PerformancePage({ params }: { params: { id: string } }) {
+    const performance = await getPerformance(params.id)
+
+    if (!performance) {
+        notFound()
     }
-}
 
-export default function PerformanceDetailPage() {
-    const params = useParams()
-    const id = params.id as string
+    // Define booking date/time logic (Keep existing logic or update if dynamic)
+    // For V5, we can keep the static logic for booking availability if not in DB
+    const bookingDate = "2024.11.22"
+    const bookingTime = "14:00"
 
-    // ID가 "perf-kinky"로 시작하면 킹키부츠 데이터 사용
-    const performanceKey = id.startsWith("perf-kinky") ? "perf-kinky-1" : "perf-1"
-    const performance = PERFORMANCES[performanceKey] || PERFORMANCES["perf-1"]
-
-    // 예매하기 링크용 날짜/시간 (킹키부츠 vs 오페라의 유령)
-    const bookingDate = id.startsWith("perf-kinky") ? "2026-02-10" : "2024-12-25"
-    const bookingTime = id.startsWith("perf-kinky") ? "19:30" : "19:00"
+    // Check if booking is open (Example logic)
+    // const now = new Date()
+    // const openTime = new Date("2024-10-25T14:00:00") // Example hardcoded or fetch from DB
+    // const isBookingOpen = true // Force open for demo
 
     return (
-        <div className="container mx-auto px-4 py-6 max-w-6xl">
-            <div className="grid md:grid-cols-2 gap-8 h-full">
-                {/* Image Section */}
-                <div className="relative aspect-[4/5] md:aspect-auto md:h-[520px] w-full bg-gray-100 rounded-lg overflow-hidden shadow-lg">
-                    {performance.image && !performance.image.includes("placeholder") ? (
+        <div className="min-h-screen bg-white flex flex-col">
+            <main className="flex-1">
+                {/* Hero Section with Poster Background - Blurry */}
+                <div className="relative w-full h-[450px] overflow-hidden bg-black">
+                    {/* Background Image */}
+                    <div className="absolute inset-0 opacity-40">
                         <Image
-                            src={performance.image}
+                            src={performance.poster || performance.posterUrl || ""}
                             alt={performance.title}
                             fill
-                            className="object-cover"
+                            className="object-cover blur-md"
                             priority
                         />
-                    ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-400">
-                            <span className="text-lg">Poster Image</span>
-                        </div>
-                    )}
-                </div>
-
-                {/* Info Section */}
-                <div className="flex flex-col h-full md:h-[520px] py-2 overflow-y-auto overflow-x-hidden">
-                    <div>
-                        <span className="inline-block px-3 py-1 bg-primary/10 text-primary text-sm font-bold rounded-full mb-3">
-                            {performance.genre}
-                        </span>
-                        <h1 className="text-3xl font-bold mb-1 tracking-tight">{performance.title}</h1>
-                        {performance.titleEn && (
-                            <p className="text-lg text-gray-500 mb-3">{performance.titleEn}</p>
-                        )}
-                        <p className="text-muted-foreground leading-relaxed text-sm lg:text-base mb-6">
-                            {performance.description}
-                        </p>
                     </div>
 
-                    <div className="space-y-3 border-t border-b py-5">
-                        <div className="flex items-start gap-3">
-                            <Calendar className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <span className="text-sm text-gray-500">공연 기간</span>
-                                <p className="font-medium">{performance.dateRange}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <Clock className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <span className="text-sm text-gray-500">공연 시간</span>
-                                <p className="font-medium text-sm">{performance.schedule}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <MapPin className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <span className="text-sm text-gray-500">공연 장소</span>
-                                <p className="font-medium">{performance.venue}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <Timer className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <span className="text-sm text-gray-500">러닝타임</span>
-                                <p className="font-medium">{performance.runtime}</p>
-                            </div>
-                        </div>
-                        <div className="flex items-start gap-3">
-                            <Users className="w-5 h-5 text-gray-500 mt-0.5 flex-shrink-0" />
-                            <div>
-                                <span className="text-sm text-gray-500">관람연령</span>
-                                <p className="font-medium">{performance.ageLimit}</p>
-                            </div>
-                        </div>
-                    </div>
+                    {/* Gradient Overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent" />
 
-                    <div className="bg-gray-50 p-4 rounded-lg mt-4">
-                        <h3 className="font-bold mb-2 text-sm text-gray-700">티켓 가격</h3>
-                        <p className="text-sm text-gray-600 font-medium">{performance.price}</p>
-                    </div>
+                    {/* Content Container */}
+                    <div className="container mx-auto px-4 md:px-8 max-w-5xl h-full relative z-10 flex items-center">
+                        <div className="flex flex-col md:flex-row gap-8 items-end md:items-center">
+                            {/* Poster Image */}
+                            <div className="w-[180px] md:w-[260px] aspect-[3/4] relative rounded-lg shadow-2xl overflow-hidden border-2 border-white/20 flex-shrink-0">
+                                <Image
+                                    src={performance.poster || performance.posterUrl || ""}
+                                    alt={performance.title}
+                                    fill
+                                    className="object-cover"
+                                />
+                            </div>
 
-                    {performance.producer && (
-                        <div className="mt-3 text-sm text-gray-500">
-                            <span className="font-medium">제작:</span> {performance.producer}
+                            {/* Text Info */}
+                            <div className="text-white space-y-4 mb-4 md:mb-0">
+                                <div className="inline-flex items-center px-3 py-1 rounded-full bg-red-600 text-white text-sm font-bold animate-pulse">
+                                    <Clock className="w-4 h-4 mr-1" />
+                                    예매중
+                                </div>
+                                <h1 className="text-4xl md:text-5xl font-bold leading-tight">{performance.title}</h1>
+                                <div className="flex items-center text-gray-200 text-lg">
+                                    <Calendar className="w-5 h-5 mr-2 text-primary" />
+                                    {performance.dateRange || performance.dates[0] + " ~ " + performance.dates[performance.dates.length - 1]}
+                                </div>
+                                <div className="flex items-center text-gray-200 text-lg">
+                                    <MapPin className="w-5 h-5 mr-2 text-primary" />
+                                    {performance.venue}
+                                </div>
+                            </div>
                         </div>
-                    )}
-
-                    {performance.contact && (
-                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-500">
-                            <Phone className="w-4 h-4" />
-                            <span>공연문의: {performance.contact}</span>
-                        </div>
-                    )}
-
-                    <div className="mt-auto pt-6 pb-4 px-4">
-                        <Link href={`/performances/${id}/booking`} className="block">
-                            <Button size="lg" className="w-full text-lg h-14 font-bold shadow-lg transition-transform hover:scale-[1.02]">
-                                예매하기
-                            </Button>
-                        </Link>
                     </div>
                 </div>
-            </div>
+
+                {/* Detail Content Section */}
+                <div className="container mx-auto px-4 md:px-8 max-w-5xl py-12">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
+                        {/* Left Column: Information */}
+                        <div className="lg:col-span-2 space-y-10">
+                            {/* Notice Card */}
+                            <div className="bg-orange-50 border border-orange-200 rounded-xl p-6">
+                                <h3 className="flex items-center text-orange-800 font-bold mb-3 text-lg">
+                                    <Info className="w-5 h-5 mr-2" />
+                                    예매 유의사항
+                                </h3>
+                                <ul className="list-disc list-inside text-sm text-gray-700 space-y-1">
+                                    <li>본 공연은 {performance.ageLimit || "전체 관람가"}입니다.</li>
+                                    <li>티켓 수령은 공연 시작 1시간 30분 전부터 가능합니다.</li>
+                                    <li>공연 당일 티켓 취소, 변경 및 환불이 불가능합니다.</li>
+                                </ul>
+                            </div>
+
+                            {/* Performance Info */}
+                            <section>
+                                <h2 className="text-2xl font-bold mb-6 border-b-2 border-black pb-2">공연 정보</h2>
+                                <div className="prose max-w-none text-gray-600 leading-relaxed whitespace-pre-line">
+                                    {performance.description}
+                                </div>
+                            </section>
+                        </div>
+
+                        {/* Right Column: Sticky Booking Card */}
+                        <div className="lg:col-span-1">
+                            <div className="sticky top-24 bg-white rounded-xl shadow-xl border border-gray-100 overflow-hidden">
+                                <div className="bg-gray-900 text-white p-4 text-center font-bold text-lg">
+                                    예매 가능 일정
+                                </div>
+                                <div className="p-6 space-y-6">
+                                    <div className="space-y-4">
+                                        <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                                            <span className="text-gray-500">관람 등급</span>
+                                            <span className="font-medium text-gray-900">{performance.ageLimit || "전체 관람가"}</span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-b border-gray-100 pb-3">
+                                            <span className="text-gray-500">관람 시간</span>
+                                            <span className="font-medium text-gray-900">{performance.runtime || "150분"}</span>
+                                        </div>
+                                        <div className="space-y-2 pt-2">
+                                            <span className="text-gray-500 block text-sm">티켓 가격</span>
+                                            <div className="bg-gray-50 p-3 rounded-lg space-y-1 text-sm text-gray-700 whitespace-pre-line">
+                                                {(performance.price || "").replace(/ \/ /g, '\n')}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <Link
+                                        href={`/performances/${performance.id}/booking`}
+                                        className="block w-full"
+                                    >
+                                        <Button className="w-full h-14 text-lg font-bold bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/30 transition-all hover:scale-[1.02]">
+                                            예매하기
+                                        </Button>
+                                    </Link>
+
+                                    <p className="text-xs text-center text-gray-400">
+                                        * 예매 수수료 장당 2,000원이 부과됩니다.
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     )
 }

@@ -1,29 +1,59 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react" // Added useEffect
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ChevronLeft, ChevronRight, Calendar, Clock, MapPin, Users } from "lucide-react"
 
-import { PERFORMANCES } from "@/lib/performance-data"
+// import { PERFORMANCES } from "@/lib/performance-data" // Commented out
+import { notFound } from "next/navigation" // Added
+
+interface Performance {
+    title: string;
+    schedules: Array<{
+        date: string;
+        dayOfWeek: string;
+        times: Array<{
+            time: string;
+            status: string;
+            availableSeats: number;
+        }>;
+    }>;
+    // add other fields if used
+}
 
 export default function BookingPage() {
     const params = useParams()
     const router = useRouter()
-    const id = params.id as string
+    const id = params.id as string // Kept for consistency, though params.id is used directly in fetch
 
-    // 공연 데이터 가져오기
-    const performanceKey = id.startsWith("perf-kinky") ? "perf-kinky-1" : "perf-1"
-    const performance = PERFORMANCES[performanceKey]
+    // Fetch performance data
+    const [performance, setPerformance] = useState<Performance | null>(null) // Changed type to Performance | null
+    const [loading, setLoading] = useState(true)
+
+    useEffect(() => {
+        if (!params.id) return;
+
+        fetch(`/api/performances/${params.id}`)
+            .then(res => {
+                if (!res.ok) throw new Error("Failed to fetch")
+                return res.json()
+            })
+            .then(data => {
+                setPerformance(data)
+                setLoading(false)
+            })
+            .catch(err => {
+                console.error(err)
+                setLoading(false)
+                // Handle error or use fallback logic here if needed
+                // For now, if fetch fails, performance will remain null
+            })
+    }, [params.id])
 
     // 상태 관리
     const [currentMonth, setCurrentMonth] = useState(() => {
-        const firstSchedule = performance?.schedules[0]
-        if (firstSchedule) {
-            const [year, month] = firstSchedule.date.split("-")
-            return { year: parseInt(year), month: parseInt(month) }
-        }
         return { year: 2026, month: 2 }
     })
     const [selectedDate, setSelectedDate] = useState<string | null>(null)

@@ -15,7 +15,7 @@ export default function SeatsPage() {
     const performanceId = params.id as string
 
     // Get Performance Data to determine valid default date/time
-    const performanceKey = performanceId.startsWith("perf-kinky") ? "perf-kinky-1" : "perf-1"
+    const performanceKey = performanceId.startsWith("perf-kinky") ? "perf-kinky-1" : "perf-phantom-of-the-opera-1"
     const performance = PERFORMANCES[performanceKey]
 
     // Default to the first available schedule if no date provided
@@ -40,19 +40,32 @@ export default function SeatsPage() {
         }
     }, [showError])
 
+    // State for dynamic performance data
+    const [performanceTitle, setPerformanceTitle] = useState("")
+
+    useEffect(() => {
+        // Fetch performance details to get title
+        fetch(`/api/performances/${performanceId}`)
+            .then(res => res.json())
+            .then(data => {
+                if (data.title) setPerformanceTitle(data.title)
+            })
+            .catch(console.error)
+    }, [performanceId])
+
     const handleSelectionComplete = async (selectedSeats: Seat[], totalPrice: number) => {
         if (isSubmitting) return
         setIsSubmitting(true)
 
         try {
-            // 1. Create Holding (Server Side Check)
+            // 1. Create Holding
             const res = await fetch("/api/holdings", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     performanceId,
                     seats: selectedSeats,
-                    userId: "guest-user-1", // Mock User ID for now, assume from Context in real app
+                    userId: "guest-user-1", // Mock User ID
                     date,
                     time
                 })
@@ -61,30 +74,24 @@ export default function SeatsPage() {
             const data = await res.json()
 
             if (!res.ok) {
-                // Show Error Overlay instead of alert
                 setErrorMsg(data.message || "이미 선택된 좌석입니다.")
                 setShowError(true)
-                // START DEBUG: Fallback alert to confirm logic path
-                // alert(data.message || "이미 선택된 좌석입니다 (DEBUG ALERT)")
-                // END DEBUG
                 setIsSubmitting(false)
-
-                // Refresh logic if needed, but user can click refresh button manually
                 return
             }
 
-            // 2. Save session for local display logic (optional, but keep for consistency)
+            // 2. Save session with DYNAMIC title
             reservationStore.saveSession({
                 performanceId,
-                performanceTitle: "오페라의 유령 (The Phantom of the Opera)",
+                performanceTitle: performanceTitle || "공연 제목 없음", // Use fetched title
                 date,
                 time,
                 seats: selectedSeats,
                 totalPrice,
-                // Add holding info if needed, but ConfirmPage will use URL param mostly
+                venue: performance?.venue || "Charlotte Theater" // Use correct venue
             })
 
-            // 3. Redirect to Confirm Page with Holding ID and Expiration Time
+            // 3. Redirect
             const expiresAtParam = data.expiresAt ? `&expiresAt=${encodeURIComponent(data.expiresAt)}` : ''
             router.push(`/reservation/confirm?holdingId=${data.holdingId}${expiresAtParam}`)
 
@@ -109,10 +116,11 @@ export default function SeatsPage() {
             )}
 
             <SeatMap
-                venueId="sample-theater" // hardcoded for now
+                venueId="sample-theater"
                 performanceId={performanceId}
                 date={date}
                 time={time}
+                isSubmitting={isSubmitting} // Added
                 onSelectionComplete={handleSelectionComplete}
             />
         </div>

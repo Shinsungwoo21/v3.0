@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "migrate-v5": "tsx scripts/migrate-v5-data.ts"
   },
   "dependencies": {
     "@aws-sdk/client-bedrock-runtime": "^3.953.0",

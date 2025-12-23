@@ -33,7 +33,7 @@ export interface Performance {
 // Mock Data for Prototype
 const MOCK_PERFORMANCES: Performance[] = [
     {
-        concertId: "perf-1",
+        concertId: "perf-phantom-of-the-opera-1",
         title: "오페라의 유령",
         artist: "조승우, 최재림",
         date: "2025-12-25",

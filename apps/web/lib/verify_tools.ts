@@ -8,7 +8,7 @@ async function runVerification() {
     // Use simulated input for user request "Reserve 2 VIP seats for Phantom"
     // Tool expects explicit IDs.
     const inputCreate = {
-        performanceId: "perf-1", // Phantom
+        performanceId: "perf-phantom-of-the-opera-1", // Phantom
         date: "2024-12-25",
         time: "19:00",
         seats: ["A-1", "A-2"], // Row A is VIP

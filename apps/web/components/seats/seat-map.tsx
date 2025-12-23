@@ -16,10 +16,11 @@ interface SeatMapProps {
     performanceId: string;
     date: string;
     time: string;
+    isSubmitting: boolean; // Added
     onSelectionComplete: (selectedSeats: Seat[], totalPrice: number) => void;
 }
 
-export function SeatMap({ venueId, performanceId, date, time, onSelectionComplete }: SeatMapProps) {
+export function SeatMap({ venueId, performanceId, date, time, isSubmitting, onSelectionComplete }: SeatMapProps) {
     const [venueData, setVenueData] = useState<VenueData | null>(null)
     const [selectedSeatIds, setSelectedSeatIds] = useState<string[]>([])
     const [selectedFloor, setSelectedFloor] = useState<string>("1층")
@@ -34,8 +35,14 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
         const requestId = ++lastRequestIdRef.current;
         if (!silent) setLoading(true)
         try {
-            // 1. Get Mock Venue Data
+            // 1. Get Mock Venue Data (Fallback)
             const data = JSON.parse(JSON.stringify(sampleTheater)) as VenueData;
+
+            // Try fetching real venue data if API available (for V5)
+            // try {
+            //    const venueRes = await fetch(`/api/venues/${venueId}`);
+            //    if (venueRes.ok) { ... merge or use ... }
+            // } catch (e) {}
 
             // 2. Get Real-time Seat Status (Add timestamp to prevent caching)
             const statusRes = await fetch(`/api/seats/${performanceId}?date=${date}&time=${time}&t=${new Date().getTime()}`, { cache: 'no-store' });
@@ -67,7 +74,7 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
                 if (!silent) setLoading(false);
             }
         }
-    }, [performanceId])
+    }, [performanceId, date, time, venueId])
 
     useEffect(() => {
         fetchVenueData(false);
@@ -158,8 +165,6 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
                 </div>
             )}
 
-
-
             {/* Stage Area */}
             <div className="w-full bg-black text-white h-14 relative flex items-center justify-center shadow-md z-1">
                 {/* Floor Tabs (Left) */}
@@ -187,7 +192,7 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
                     variant="secondary"
                     className="absolute right-4 top-1/2 -translate-y-1/2 h-8 text-xs font-medium bg-white/90 hover:bg-white text-gray-800 gap-1.5 transition-all active:scale-95"
                     onClick={() => fetchVenueData(false)}
-                    disabled={loading}
+                    disabled={loading || isSubmitting}
                 >
                     <RotateCcw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
                     새로고침
@@ -256,11 +261,21 @@ export function SeatMap({ venueId, performanceId, date, time, onSelectionComplet
 
                             <Button
                                 size="lg"
-                                className="px-10 h-14 text-xl font-bold shadow-lg transition-all hover:scale-105 hover:shadow-xl"
-                                disabled={selectedSeatIds.length === 0}
+                                className="px-10 h-14 text-xl font-bold shadow-lg transition-all hover:scale-105 hover:shadow-xl relative"
+                                disabled={selectedSeatIds.length === 0 || isSubmitting}
                                 onClick={handleComplete}
                             >
-                                예매하기
+                                {isSubmitting ? (
+                                    <>
+                                        <span className="opacity-0">예매하기</span>
+                                        <div className="absolute inset-0 flex items-center justify-center">
+                                            <div className="w-6 h-6 border-3 border-white/30 border-t-white rounded-full animate-spin" />
+                                            <span className="ml-2 text-base font-medium">처리 중...</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    "예매하기"
+                                )}
                             </Button>
                         </div>
                     </div>

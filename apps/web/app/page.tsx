@@ -8,7 +8,7 @@ import { ScrollToTop } from "@/components/scroll-to-top"
 export default function Home() {
   const newArrivals = [
     { id: "perf-kinky-1", title: "킹키부츠", category: "뮤지컬", discount: "15%", price: "144,500원", badge: "NEW", image: "/posters/kinky-boots.png" },
-    { id: "perf-1", title: "오페라의 유령", category: "뮤지컬", discount: "20%", price: "120,000원", badge: "HOT", image: "/posters/opera.png" },
+    { id: "perf-phantom-of-the-opera-1", title: "오페라의 유령", category: "뮤지컬", discount: "20%", price: "120,000원", badge: "HOT", image: "/posters/opera-new.png" }, // Image will be updated later
     { title: "세상 끝의 카페(용인)", category: "뮤지컬", discount: "45%", price: "36,300원", badge: "NEW" },
     { title: "옥탑방 고양이(대구)", category: "연극", discount: "50%", price: "20,000원", badge: "NEW" },
   ]

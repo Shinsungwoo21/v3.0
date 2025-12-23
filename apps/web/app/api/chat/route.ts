@@ -17,7 +17,7 @@ Markdown 형식을 사용하여 가독성 좋은 답변을 제공하세요.
 [공연 정보 사용 규칙 - 매우 중요]
 - **도구 호출 시 반드시 [Performance Data]에서 제공된 <id>, <date>, <time> 값을 사용하세요!**
 - 예: 킹키부츠 2월 10일 → performanceId: "perf-kinky-1", date: "2026-02-10", time: "19:30"
-- **절대로 performanceId를 추측하거나 "perf-1" 같은 다른 ID를 사용하지 마세요.**
+- **절대로 performanceId를 추측하거나 "perf-phantom-of-the-opera-1" 같은 다른 ID를 사용하지 마세요.**
 - 공연명으로 검색하여 [Performance Data]에서 해당 공연의 정확한 id를 찾아 사용하세요.
 
 [좌석 형식 안내 - 매우 중요]

@@ -6,7 +6,12 @@ export interface Performance {
     description: string;
     dates: string[]; // YYYY-MM-DD
     times: string[]; // HH:mm
-    posterUrl?: string;
+    posterUrl?: string; // Legacy
+    poster?: string; // New UI uses this
+    dateRange?: string; // New UI uses this
+    runtime?: string;
+    ageLimit?: string;
+    price?: string;
 }
 
 export interface SeatInfo {
@@ -16,13 +21,18 @@ export interface SeatInfo {
 
 const PERFORMANCES: Performance[] = [
     {
-        id: "perf-1",
+        id: "perf-phantom-of-the-opera-1",
         title: "오페라의 유령 (The Phantom of the Opera)",
-        venue: "Mega Arts Center",
-        description: "전 세계를 매혹시킨 불멸의 명작! 앤드류 로이드 웨버의 걸작.",
-        dates: ["2025-12-25", "2025-12-26", "2025-12-27", "2025-12-28"],
-        times: ["14:00", "19:00"],
-        posterUrl: "/posters/phantom-poster.png"
+        venue: "샤롯데씨어터",
+        description: "전 세계를 매혹시킨 불멸의 명작! 브로드웨이 최장기 공연 기네스북 등재. 앤드류 로이드 웨버의 역대급 뮤지컬 넘버와 화려한 무대 연출로 관객들의 마음을 사로잡는 감동의 대서사시.",
+        dates: ["2026-02-20", "2026-06-15"],
+        times: ["19:30"],
+        posterUrl: "/posters/opera-new.png",
+        poster: "/posters/opera-new.png",
+        dateRange: "2026.02.20 ~ 2026.06.15",
+        runtime: "150분 (인터미션 20분)",
+        ageLimit: "8세 이상",
+        price: "VIP석 150,000원 / R석 120,000원 / S석 90,000원 / A석 60,000원"
     },
     {
         id: "perf-2",
