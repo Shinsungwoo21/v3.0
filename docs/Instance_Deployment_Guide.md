@@ -86,3 +86,33 @@ npm run build
 # 4. 실행
 npm start
 ```
+
+---
+
+## 4. 트러블슈팅: npm install 멈춤 현상
+
+AWS t2.micro, t3.micro 등 소형 인스턴스에서 `npm install` 실행 시 메모리 부족으로 인해 서버가 멈추는(Freeze) 현상이 발생할 수 있습니다.
+이 경우 **Swap 메모리**를 설정하여 디스크 공간을 임시 메모리로 사용하면 해결됩니다.
+
+### ✅ Swap 메모리 설정 (2GB)
+
+아래 명령어를 복사하여 터미널에 붙여넣으세요.
+
+```bash
+# 1. 2GB 스왑 파일 생성
+sudo dd if=/dev/zero of=/swapfile bs=128M count=16
+
+# 2. 권한 설정
+sudo chmod 600 /swapfile
+
+# 3. 스왑 활성화
+sudo mkswap /swapfile
+sudo swapon /swapfile
+
+# 4. 설정 확인 (Swap 항목에 용량이 잡히면 성공)
+free -h
+```
+
+> **📌 비용 안내**: 별도의 추가 비용은 발생하지 않습니다.
+> Swap 파일은 이미 인스턴스에 연결된 **SSD(EBS 볼륨)**의 빈 공간을 활용합니다. 따라서 사용 중인 EBS 용량 내에서 2GB를 점유할 뿐, 추가 요금은 부과되지 않습니다.
+
