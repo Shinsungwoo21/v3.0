@@ -346,7 +346,7 @@ export function ChatInterface() {
                     <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar flex flex-col">
                         {/* [V7.9] Floating Badge for Runtime Model Info - Bottom Right (Stacked above Region) */}
                         {runtimeModelInfo && (
-                            <div className="fixed bottom-10 right-5 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-500 flex flex-col items-end gap-1">
+                            <div className="fixed bottom-14 right-5 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-500 flex flex-col items-end gap-1">
                                 <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full shadow-xl border backdrop-blur-md transition-all hover:scale-105 ${runtimeModelInfo.isFallback
                                     ? "bg-yellow-50/95 border-yellow-300 text-yellow-900 ring-2 ring-yellow-100"
                                     : "bg-blue-50/95 border-blue-200 text-blue-900 ring-2 ring-blue-100"

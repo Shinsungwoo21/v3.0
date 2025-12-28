@@ -33,6 +33,7 @@ export interface Grade {
     grade: string;
     color: string;
     price: number;
+    description?: string;  // V7.14: 좌석 등급 설명
 }
 
 export interface VenueData {
@@ -42,6 +43,7 @@ export interface VenueData {
     totalSeats: number;
     sections: Section[];
     grades: Grade[];
+    hasOPSeats?: boolean;  // V7.14: OP석 판매 여부 (공연별로 결정)
 }
 
 export interface Holding {
@@ -66,6 +68,6 @@ export interface Reservation {
     time: string;
     seats: Seat[];
     totalPrice: number;
-    status: 'confirmed' | 'cancelled';
+    status: 'confirmed' | 'cancelled' | 'dr_recovered';  // V7.14: DR_RECOVERED 상태 추가
     createdAt: string;
 }

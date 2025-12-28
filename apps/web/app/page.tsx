@@ -10,8 +10,8 @@ import { ScrollToTop } from "@/components/scroll-to-top"
 
 export default function Home() {
   const newArrivals = [
-    { id: "perf-kinky-1", title: "킹키부츠", category: "뮤지컬", discount: "15%", price: "144,500원", badge: "NEW", image: "/posters/kinky-boots.png" },
-    { id: "perf-phantom-of-the-opera-1", title: "오페라의 유령", category: "뮤지컬", discount: "20%", price: "120,000원", badge: "HOT", image: "/posters/opera-new.png" }, // Image will be updated later
+    { id: "perf-kinky-1", title: "킹키부츠", category: "뮤지컬", discount: "15%", price: "144,500원", badge: "NEW", poster: "/posters/kinky-boots.png" },
+    { id: "perf-phantom-of-the-opera-1", title: "오페라의 유령", category: "뮤지컬", discount: "20%", price: "120,000원", badge: "HOT", poster: "/posters/opera.png" },
     { title: "세상 끝의 카페(용인)", category: "뮤지컬", discount: "45%", price: "36,300원", badge: "NEW" },
     { title: "옥탑방 고양이(대구)", category: "연극", discount: "50%", price: "20,000원", badge: "NEW" },
   ]
@@ -100,7 +100,7 @@ interface SimpleCardItem {
   discount?: string;
   price: string;
   badge?: string;
-  image?: string;
+  poster?: string;
 }
 
 function SimpleCard({ item, bgWhite = false }: { item: SimpleCardItem, bgWhite?: boolean }) {
@@ -121,9 +121,9 @@ function SimpleCard({ item, bgWhite = false }: { item: SimpleCardItem, bgWhite?:
               {item.badge}
             </div>
           )}
-          {item.image ? (
+          {item.poster ? (
             <Image
-              src={item.image}
+              src={item.poster}
               alt={item.title}
               fill
               className="object-cover"

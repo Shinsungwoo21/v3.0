@@ -6,10 +6,15 @@
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import { DynamoDBDocumentClient, ScanCommand, UpdateCommand } from "@aws-sdk/lib-dynamodb";
 
-const client = new DynamoDBClient({ region: process.env.AWS_REGION || "ap-northeast-2" });
+const client = new DynamoDBClient({
+    region: process.env.AWS_REGION || "ap-northeast-2",
+    // 로컬 개발 환경용 엔드포인트
+    ...(process.env.DYNAMODB_ENDPOINT && { endpoint: process.env.DYNAMODB_ENDPOINT })
+});
 const dynamodb = DynamoDBDocumentClient.from(client);
 
-const PERFORMANCES_TABLE = "performances";
+// 환경변수에서 테이블명 가져오기 (기본값: KDT-Msp4-PLDR-performances)
+const PERFORMANCES_TABLE = process.env.DYNAMODB_PERFORMANCES_TABLE || "KDT-Msp4-PLDR-performances";
 
 // 좌석 등급별 설명 정보 (SSOT)
 const seatGradeDescriptions = {

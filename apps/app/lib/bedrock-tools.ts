@@ -80,7 +80,7 @@ export const BEDROCK_TOOLS: ToolConfiguration['tools'] = [
             임의로 일정을 생성하거나 추측하지 마세요!
             
             반환 정보:
-            - scheduleId: 회차 ID (예: sch-kinky-20260210-1930)
+            - scheduleId: 회차 ID (예: perf-kinky-1-2026-02-10-19:30)
             - date: 날짜 (예: 2026-02-10)
             - time: 시간 (예: 19:30)
             - dayOfWeek: 요일 (예: 화, 토, 일)
@@ -504,7 +504,7 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                         date = schedule.date;
                         time = schedule.times?.[0]?.time || time;
                     }
-                    // scheduleId 파싱 fallback (형식: sch-kinky-20260210-1930)
+                    // scheduleId 파싱 fallback (형식: perf-kinky-1-2026-02-10-19:30 또는 레거시 sch-kinky-20260210-1930)
                     if (!date || !time) {
                         const parts = scheduleId.split('-');
                         if (parts.length >= 4) {
@@ -736,11 +736,16 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                                 const rowId = parseInt(parts[2]);
                                 const seatNums = chunk.map(s => s.split('-')[3]).join('~');
 
-                                // 상세 위치 정보 생성 (V7.9.3.2 고도화)
-                                let positionNote = "";
-                                if (rowId <= 5) positionNote = "무대와 매우 가까운 앞쪽";
-                                else if (rowId <= 10) positionNote = "시야가 좋은 중간 쪽";
-                                else positionNote = "전체적인 무대 감상이 좋은 뒤쪽";
+                                // [V7.11] DB description 우선 사용
+                                const gradeDesc = seatGrades.find((g: any) => g.grade === grade);
+                                let positionNote = gradeDesc?.description || "";
+                                if (!positionNote) {
+                                    // OP열 특별 처리 (parts[2]는 rowId 문자열)
+                                    if (parts[2] === 'OP') positionNote = "무대와 가장 가까운 오케스트라 피트석";
+                                    else if (rowId <= 5) positionNote = "무대와 매우 가까운 앞쪽";
+                                    else if (rowId <= 10) positionNote = "시야가 좋은 중간 쪽";
+                                    else positionNote = "전체적인 무대 감상이 좋은 뒤쪽";
+                                }
 
                                 let blockNote = "";
                                 if (parts[1] === 'B') {
@@ -784,31 +789,9 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                         }])
                     ),
                     recommendedOptions: recommendations,
-                    message: `${responseMessage}\n\n[추천 좌석 (인원: ${targetCount}명)]\n${Object.values(recommendations).flat().map(r => r.formatted).join('\n')}\n\n총 ${totalAvailable}석 예약 가능합니다.`,
-                    // [V7.12] STEP 6 버튼 - '다른 좌석 보기' 추가
-                    _actions: [
-                        {
-                            id: 'hold_yes',
-                            label: '좌석 선점',
-                            type: 'message',
-                            text: '네, 선점해주세요',
-                            style: 'primary'
-                        },
-                        {
-                            id: 'other_seats',
-                            label: '다른 좌석 보기',
-                            type: 'message',
-                            text: '다른 좌석 보여줘',
-                            style: 'secondary'
-                        },
-                        {
-                            id: 'cancel_flow',
-                            label: '취소',
-                            type: 'message',
-                            text: '취소할래',
-                            style: 'danger'
-                        }
-                    ]
+                    message: `${responseMessage}\n\n[추천 좌석 (인원: ${targetCount}명)]\n${Object.values(recommendations).flat().map(r => r.formatted).join('\n')}\n\n그 외 다른 좌석을 원하시면 말씀해주세요!\n\n어느 좌석이 마음에 드세요? (번호로 말씀해주세요!)`,
+                    // [V7.11] STEP 5에서는 버튼 제거 - 사용자가 번호 선택 후 STEP 6에서 버튼 표시
+                    _actions: undefined
                 };
             }
 

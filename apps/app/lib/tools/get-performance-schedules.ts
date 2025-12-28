@@ -91,7 +91,7 @@ export async function getPerformanceSchedules(params: GetSchedulesParams) {
             const formattedDate = `${year}년 ${parseInt(month)}월 ${parseInt(day)}일 (${s.dayOfWeek})`;
 
             return {
-                scheduleId: s.scheduleId,        // sch-kinky-20260210-1930
+                scheduleId: s.scheduleId,        // perf-kinky-1-2026-02-10-19:30
                 performanceId: s.performanceId,  // perf-kinky-1
                 date: s.date,                    // 2026-02-10
                 formattedDate,                   // [V7.10] 2026년 2월 10일 (화)

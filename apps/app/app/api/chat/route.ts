@@ -314,6 +314,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Messages array is required" }, { status: 400 });
         }
 
+        // [V7.11] 세션 종료/빈 메시지 검증 - Bedrock 호출 전 차단하여 Fallback 미발동 및 메트릭 오염 방지
+        if (messages.length === 0) {
+            return NextResponse.json({
+                error: "세션이 종료되었습니다.",
+                sessionExpired: true
+            }, { status: 400 });
+        }
+
+        // 마지막 메시지가 비어있는지 확인
+        const lastMessage = messages[messages.length - 1];
+        if (!lastMessage?.content || (Array.isArray(lastMessage.content) && lastMessage.content.length === 0)) {
+            return NextResponse.json({
+                error: "빈 메시지는 전송할 수 없습니다.",
+                sessionExpired: true
+            }, { status: 400 });
+        }
+
         let systemPromptText = SYSTEM_PROMPT;
         if (userId) systemPromptText += `\n\n[User Context]\n- Current User ID: "${userId}"`;
         systemPromptText += `\n\n[Current Time]: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;

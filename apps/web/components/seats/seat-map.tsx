@@ -109,7 +109,7 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
                             if (rowData.seats) {
                                 rowData.seats.forEach(seat => {
                                     if (statusMap[seat.seatId]) {
-                                        seat.status = statusMap[seat.seatId];
+                                        seat.status = statusMap[seat.seatId] as SeatStatus;
                                     }
                                 });
                             }
@@ -134,12 +134,15 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
     useEffect(() => {
         fetchVenueData(false);
 
-        // Polling every 3 seconds
+        // V7.15: 3초 자동 Polling 비활성화 (DB 비용 절감)
+        // 테스트 시 아래 주석 해제하여 사용 가능
+        /*
         const interval = setInterval(() => {
             fetchVenueData(true);
         }, 3000);
+        */
 
-        // Custom Event Listener for instant refresh
+        // Custom Event Listener for instant refresh (선점/예약 후 즉시 갱신)
         const handleRefresh = () => {
             // Add small delay to ensure server write completes
             setTimeout(() => {
@@ -149,7 +152,7 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
         window.addEventListener('REFRESH_SEAT_MAP', handleRefresh);
 
         return () => {
-            clearInterval(interval);
+            // clearInterval(interval);  // V7.15: Polling 비활성화로 주석 처리
             window.removeEventListener('REFRESH_SEAT_MAP', handleRefresh);
         }
     }, [fetchVenueData])
