@@ -846,31 +846,39 @@ for await (const event of response.stream) {
 
 
 
-### 9.2 환경변수
+### 9.2 환경변수 및 DR 설정 (Standardized)
 
-#### AWS 기본 설정
+**필수 환경변수 목록** (DR 환경 배포 시 확인):
 
-| 변수 | 설명 | 기본값 |
-|------|------|--------|
-| `AWS_PROFILE` | AWS 프로파일 (로컬 개발용) | `BedrockDevUser-hyebom` |
-| `AWS_REGION` | AWS 리전 | `ap-northeast-2` |
+| 환경변수명 | 설명 | Main (서울) 값 | DR (도쿄) 값 예시 |
+|------------|------|----------------|-------------------|
+| `AWS_REGION` | AWS 리전 | `ap-northeast-2` | `ap-northeast-1` |
+| `DYNAMODB_PERFORMANCES_TABLE` | 공연 테이블 | `KDT-Msp4-PLDR-performances` | `KDT-Msp4-PLDR-performances` (Global Table) |
+| `DYNAMODB_VENUES_TABLE` | 공연장 테이블 | `KDT-Msp4-PLDR-venues` | `KDT-Msp4-PLDR-venues` (Global Table) |
+| `DYNAMODB_RESERVATIONS_TABLE` | 예약 테이블 | `KDT-Msp4-PLDR-reservations` | `KDT-Msp4-PLDR-reservations` (Global Table) |
+| `DYNAMODB_SCHEDULES_TABLE` | 스케줄 테이블 | `KDT-Msp4-PLDR-schedules` | `KDT-Msp4-PLDR-schedules` (Global Table) |
+| `DR_RECOVERY_MODE` | 장애 복구 모드 | `false` | `true` (장애 시) |
 
-#### Docker 환경 (docker-compose.yml)
+> 📌 **DR 전략**: DynamoDB Global Table을 사용하므로 테이블명은 동일하게 유지되며, `AWS_REGION` 변경만으로 가장 가까운 리전의 테이블 엔드포인트에 접속합니다.
 
-| 변수 | 설명 | 값 |
-|------|------|-----|
-| `AWS_SDK_LOAD_CONFIG` | AWS config 파일 로드 활성화 | `1` |
-| `AWS_CONFIG_FILE` | AWS config 파일 경로 | `/home/nextjs/.aws/config` |
-| `AWS_SHARED_CREDENTIALS_FILE` | AWS 자격증명 파일 경로 | `/home/nextjs/.aws/credentials` |
+#### DR_RECOVERY_MODE (`true`) 가 필요한 이유?
 
-#### DynamoDB 테이블
+*   **기능**: 장애 복구 시 **[유예 기간 (Grace Period)]** 로직이 활성화됩니다.
+*   **시나리오**:
+    1.  사용자가 **서울 리전**에서 좌석을 **선점(Holding)** 하고 결제 중이었는데, 갑자기 **서울 리전 장애 발생**.
+    2.  사용자는 자동으로 **도쿄 리전(DR)**으로 라우팅되어 접속.
+    3.  **FALSE인 경우**: 도쿄 리전은 "이 선점 데이터(서울 생성)는 만료되었거나 비정상적이다"라고 판단하여 **예약 거부**.
+    4.  **TRUE인 경우**: "비상 상황이므로, 이 선점 데이터가 조금 지났더라도 **복구된 데이터(DR_RECOVERED)** 로 인정하자!" 라고 판단.
+*   **효과**: 장애 상황에서 사용자의 **진행 중인 예약(In-flight Transaction)을 구제**하여 오류 없이 예약을 마무리할 수 있게 해줍니다.
 
-| 변수 | 설명 | 기본값 |
-|------|------|--------|
-| `DYNAMODB_PERFORMANCES_TABLE` | 공연 테이블 | `KDT-Msp4-PLDR-performances` |
-| `DYNAMODB_RESERVATIONS_TABLE` | 예약 테이블 | `KDT-Msp4-PLDR-reservations` |
-| `DYNAMODB_SCHEDULES_TABLE` | 스케줄 테이블 | `KDT-Msp4-PLDR-schedules` |
-| `DYNAMODB_VENUES_TABLE` | 공연장 테이블 | `KDT-Msp4-PLDR-venues` |
+#### Docker 환경 (docker-compose.yml) 매핑 확인
+
+```yaml
+environment:
+  - AWS_REGION=${AWS_REGION:-ap-northeast-2}
+  - DYNAMODB_PERFORMANCES_TABLE=${DYNAMODB_PERFORMANCES_TABLE:-KDT-Msp4-PLDR-performances}
+  # ... (기타 테이블 변수 매핑)
+```
 
 ### 9.3 사용 AWS SDK
 

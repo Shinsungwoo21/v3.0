@@ -8,6 +8,7 @@ services:
     environment:
       - INTERNAL_API_URL=http://app:3001
       - NEXT_PUBLIC_API_URL=/api
+      - AWS_REGION=${AWS_REGION:-ap-northeast-2} # [V7.12] Added for RegionIndicator SSR
     depends_on:
       - app
     networks:
@@ -23,6 +24,7 @@ services:
       - ./apps/app/env.example
     environment:
       - AWS_REGION=${AWS_REGION:-ap-northeast-2}
+      - DR_RECOVERY_MODE=${DR_RECOVERY_MODE:-false} # [V7.12] Added for DR Logic
       - AWS_PROFILE=BedrockDevUser-hyebom
       - AWS_SDK_LOAD_CONFIG=1
       - AWS_CONFIG_FILE=/home/nextjs/.aws/config

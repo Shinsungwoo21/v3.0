@@ -3,8 +3,8 @@
 > **문서 버전**: V7.14  
 > **최종 수정**: 2025-12-28  
 > **작성자**: Antigravity (AI 어시스턴트)  
-> **AWS 리전**: ap-northeast-2 (서울)  
-> **테이블 접두사**: `KDT-Msp4-PLDR-*`  
+> **AWS 리전**: ap-northeast-2 (기본값, `AWS_REGION` 환경변수로 변경 가능)  
+> **테이블 접두사**: `KDT-Msp4-PLDR-*` (기본값, `DYNAMODB_*_TABLE` 환경변수로 변경 가능)  
 > **데이터 출처**: AWS DynamoDB 실제 Scan 조회 결과 기반 (2025-12-28)
 
 ---
@@ -579,6 +579,8 @@ if (expiresAt && expiresAt < now) {
 ```bash
 # ═══════════════════════════════════════════════════════════════
 # DynamoDB 테이블명
+# 코드에서는 process.env.DYNAMODB_XXXX_TABLE || "기본값" 형태로 로드됩니다.
+# DR 환경 등에서 테이블명을 변경해야 할 경우 아래 변수를 설정하세요.
 # ═══════════════════════════════════════════════════════════════
 DYNAMODB_PERFORMANCES_TABLE=KDT-Msp4-PLDR-performances
 DYNAMODB_RESERVATIONS_TABLE=KDT-Msp4-PLDR-reservations
