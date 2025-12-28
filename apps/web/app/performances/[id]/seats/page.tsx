@@ -96,7 +96,8 @@ function SeatsContent() {
                 time,
                 seats: selectedSeats,
                 totalPrice,
-                venue: performance?.venue || "Charlotte Theater"
+                venue: performance?.venue || "Charlotte Theater",
+                sections: performance?.sections || [] // V7.15 SSOT: 연속 번호 계산용
             })
 
             const expiresAtParam = data.expiresAt ? `&expiresAt=${encodeURIComponent(data.expiresAt)}` : ''

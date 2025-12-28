@@ -1,6 +1,6 @@
 ﻿"use client"
 
-import { VenueData, Section } from "@mega-ticket/shared-types"
+import { VenueData, Section, calculateGlobalSeatNumber } from "@mega-ticket/shared-types"
 import { SeatButton } from "../seat-button"
 import { cn } from "@/lib/utils"
 import { useRef, useEffect } from "react"
@@ -19,33 +19,6 @@ export function TheaterTemplate({ venueData, selectedSeats, selectedFloor, onSea
     // Sort sections A -> B -> C for display order
     const sortedSections = [...filteredSections].sort((a, b) => a.sectionId.localeCompare(b.sectionId));
 
-    // V7.13: 연속 좌석 번호 계산 함수 (같은 열에서 A -> B -> C 순서로 연속)
-    const calculateGlobalSeatNumber = (
-        sectionId: string,
-        rowId: string,
-        localSeatNumber: number
-    ): number => {
-        // OP열은 독립적으로 1~12번
-        if (rowId === 'OP') {
-            return localSeatNumber;
-        }
-
-        // 나머지 열은 A -> B -> C 순서로 연속
-        const sectionOrder = ['A', 'B', 'C', 'D', 'E', 'F'];
-        const currentSectionIndex = sectionOrder.indexOf(sectionId);
-
-        let offset = 0;
-        for (let i = 0; i < currentSectionIndex; i++) {
-            const section = filteredSections.find(s => s.sectionId === sectionOrder[i]);
-            if (section) {
-                const row = section.rows.find((r: any) => r.rowId === rowId);
-                if (row && row.seats) {
-                    offset += row.seats.length;
-                }
-            }
-        }
-        return offset + localSeatNumber;
-    };
 
     // 스크롤 컨테이너 ref
     const scrollContainerRef = useRef<HTMLDivElement>(null);
@@ -143,11 +116,13 @@ export function TheaterTemplate({ venueData, selectedSeats, selectedFloor, onSea
 
                                                 <div className="flex gap-0.5 justify-center">
                                                     {row.seats.map((seat: any, seatIndex: number) => {
-                                                        // V7.13: 연속 좌석 번호 계산
+                                                        // V7.15 SSOT: 공통 유틸리티로 연속 좌석 번호 계산
                                                         const displayNum = calculateGlobalSeatNumber(
                                                             section.sectionId,
                                                             row.rowId,
-                                                            seatIndex + 1
+                                                            seatIndex + 1,
+                                                            filteredSections as any,
+                                                            selectedFloor
                                                         );
 
                                                         return (

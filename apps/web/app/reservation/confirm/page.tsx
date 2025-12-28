@@ -9,6 +9,7 @@ import { Separator } from "@/components/ui/separator"
 import { Calendar, Clock, MapPin, Ticket } from "lucide-react"
 import { apiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
+import { parseSeatId, calculateGlobalSeatNumber } from "@mega-ticket/shared-types"
 
 function ReservationConfirmContent() {
     const router = useRouter()
@@ -222,13 +223,23 @@ function ReservationConfirmContent() {
                         {/* V7.13: 리스트 간격 조절 (space-y-1.5 -> space-y-0.5, p-3 -> p-2) */}
                         <div className="bg-gray-50 p-2 rounded-xl space-y-0.5 border border-gray-100 max-h-[200px] overflow-y-auto custom-scrollbar">
                             {session.seats.map(seat => {
-                                // V7.13: seatId에서 상세 정보 파싱 (형식: 1층-B-OP-14)
-                                const parts = seat.seatId.split('-');
-                                let displayText = `${seat.grade}석 ${seat.rowId || '?'}열 ${seat.seatNumber}번`;
-                                if (parts.length === 4) {
-                                    const [floor, section, row, num] = parts;
-                                    displayText = `${floor} ${section}구역 ${row}열 ${num}번 (${seat.grade}석)`;
+                                // V7.15 SSOT: 공통 유틸리티로 좌석 라벨 생성
+                                const { floor, sectionId, rowId, localNumber } = parseSeatId(seat.seatId);
+
+                                // sections 데이터가 있으면 연속 번호 계산
+                                let displayNumber = localNumber;
+                                if ((session as any).sections && (session as any).sections.length > 0) {
+                                    const floorSections = (session as any).sections.filter((s: any) => s.floor === floor);
+                                    displayNumber = calculateGlobalSeatNumber(
+                                        sectionId,
+                                        rowId,
+                                        localNumber,
+                                        floorSections,
+                                        floor
+                                    );
                                 }
+
+                                const displayText = `${floor} ${sectionId}구역 ${rowId}열 ${displayNumber}번 (${seat.grade}석)`;
                                 const gradeColor = (seat as any).color || '#333333';
                                 return (
                                     // V7.13: 아이템 간격 조절 (p-2 -> py-0.5 px-2)

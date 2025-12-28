@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { CalendarDays, MapPin, Ticket, Clock, CreditCard } from "lucide-react"
+import { parseSeatId, calculateGlobalSeatNumber, SectionData } from "@mega-ticket/shared-types"
 
 export interface ReservationSeat {
     grade: string
@@ -30,6 +31,7 @@ export interface Reservation {
     totalPrice: number
     status: "confirmed" | "cancelled"
     createdAt: string
+    sections?: SectionData[]  // V7.15 SSOT: 연속 번호 계산용
 }
 
 interface ReservationCardProps {
@@ -146,30 +148,29 @@ export function ReservationCard({ reservation, onCancel, onDelete }: Reservation
 
 
                                     {reservation.seats.map((seat, idx) => {
-                                        // Improved seat label logic
+                                        // V7.15 SSOT: 공통 유틸리티로 좌석 라벨 생성
                                         let seatLabel = "";
 
-                                        // Parse seatId (Standard format: Section-Row-Number or Floor-Section-Row-Number)
-                                        // Example: A-1-5 or 1F-A-1-5
                                         if (seat.seatId) {
-                                            const parts = seat.seatId.split('-');
-                                            if (parts.length >= 3) {
-                                                const section = parts[parts.length - 3];
-                                                const row = parts[parts.length - 2];
-                                                const number = parts[parts.length - 1];
+                                            const { floor, sectionId, rowId, localNumber } = parseSeatId(seat.seatId);
 
-                                                // Determine floor based on section (A,B,C,OP -> 1F / D,E,F -> 2F)
-                                                // This is Charlotte Theater specific logic but consistent with other parts of the app
-                                                const floor = ['A', 'B', 'C', 'OP'].includes(section) ? '1층' : (['D', 'E', 'F'].includes(section) ? '2층' : '');
-
-                                                // Format: "1층 VIP석 A구역 2열 15번" or similar
-                                                // User requested: "1층 VIP석 구역 22" or "VIP석 1층-B-2-22"
-                                                // Let's go with "1층 A구역 2열 15번" style + Grade
-                                                seatLabel = `${floor ? floor + ' ' : ''}${section}구역 ${row}열 ${number}번`;
+                                            // sections 데이터가 있으면 연속 번호 계산
+                                            let displayNumber = localNumber;
+                                            if (reservation.sections && reservation.sections.length > 0) {
+                                                const floorSections = reservation.sections.filter(s => s.floor === floor);
+                                                displayNumber = calculateGlobalSeatNumber(
+                                                    sectionId,
+                                                    rowId,
+                                                    localNumber,
+                                                    floorSections,
+                                                    floor
+                                                );
                                             }
+
+                                            seatLabel = `${floor} ${sectionId}구역 ${rowId}열 ${displayNumber}번`;
                                         }
 
-                                        // Fallback if parsing failed but we have individual fields
+                                        // Fallback if parsing failed
                                         if (!seatLabel) {
                                             seatLabel = seat.seatNumber
                                                 ? `${seat.seatNumber}번`

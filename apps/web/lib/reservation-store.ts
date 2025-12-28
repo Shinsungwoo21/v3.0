@@ -1,4 +1,4 @@
-import { Seat } from "@mega-ticket/shared-types"
+import { Seat, SectionData } from "@mega-ticket/shared-types"
 
 export interface ReservationSession {
     performanceId: string;
@@ -8,6 +8,7 @@ export interface ReservationSession {
     seats: Seat[];
     totalPrice: number;
     venue?: string; // Add venue for display
+    sections?: SectionData[]; // V7.15 SSOT: 연속 번호 계산용
 }
 
 const STORAGE_KEY = "megaticket-reservation-session"

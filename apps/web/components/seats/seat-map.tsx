@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback, useRef } from "react"
-import { VenueData, Seat, SeatStatus, Section, Row, Grade } from "@mega-ticket/shared-types"
+import { VenueData, Seat, SeatStatus, Section, Row, Grade, calculateGlobalSeatNumber, parseSeatId } from "@mega-ticket/shared-types"
 import { TheaterTemplate } from "./templates/theater-template"
 import { SeatLegend } from "./seat-legend"
 import { Button } from "@/components/ui/button"
@@ -308,35 +308,16 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
                             <div className="flex gap-2 min-h-[32px] p-1 overflow-x-auto max-w-full" style={{ scrollbarWidth: 'thin' }}>
                                 {selectedSeatIds.length > 0 ? (
                                     selectedSeatIds.map(id => {
-                                        // V7.13: seatId 파싱 (형식: "1층-B-5-2")
-                                        const parts = id.split('-');
-                                        const floor = parts[0] || '';
-                                        const sectionId = parts[1] || '';
-                                        const row = parts[2] || '';
-                                        const localNum = parseInt(parts[3] || '0');
-
-                                        // V7.13: 연속 번호 계산 (theater-template.tsx와 동일 로직)
-                                        const calculateGlobalSeatNumber = () => {
-                                            if (row === 'OP') return localNum; // OP열은 독립적
-
-                                            const sectionOrder = ['A', 'B', 'C', 'D', 'E', 'F'];
-                                            const currentSectionIndex = sectionOrder.indexOf(sectionId);
-                                            const floorSections = venueData?.sections.filter((s: any) => s.floor === floor) || [];
-
-                                            let offset = 0;
-                                            for (let i = 0; i < currentSectionIndex; i++) {
-                                                const section = floorSections.find((s: any) => s.sectionId === sectionOrder[i]);
-                                                if (section) {
-                                                    const targetRow = section.rows.find((r: any) => r.rowId === row);
-                                                    if (targetRow && targetRow.seats) {
-                                                        offset += targetRow.seats.length;
-                                                    }
-                                                }
-                                            }
-                                            return offset + localNum;
-                                        };
-
-                                        const displayNum = calculateGlobalSeatNumber();
+                                        // V7.15 SSOT: 공통 유틸리티로 seatId 파싱 및 연속 번호 계산
+                                        const { floor, sectionId, rowId, localNumber } = parseSeatId(id);
+                                        const floorSections = venueData?.sections.filter((s: any) => s.floor === floor) || [];
+                                        const displayNum = calculateGlobalSeatNumber(
+                                            sectionId,
+                                            rowId,
+                                            localNumber,
+                                            floorSections as any,
+                                            floor
+                                        );
 
                                         // 좌석 정보 및 등급 색상 찾기
                                         const seatData = getSelectedSeatsData().find(s => s.seatId === id);
@@ -344,8 +325,8 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
                                         const gradeColor = gradeInfo?.color || '#FF6B35';
                                         const gradeLabel = seatData?.grade || '';
 
-                                        // V7.13: "N층 N열 N번 (등급석)" 형식 - 연속 번호 사용
-                                        const displayLabel = `${floor} ${row}열 ${displayNum}번 (${gradeLabel}석)`;
+                                        // V7.15 SSOT: 통일된 좌석 라벨 형식
+                                        const displayLabel = `${floor} ${sectionId}구역 ${rowId}열 ${displayNum}번 (${gradeLabel}석)`;
 
                                         return (
                                             <span
