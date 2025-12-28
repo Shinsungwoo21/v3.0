@@ -406,14 +406,19 @@ export async function getSeatStatusMap(performanceId: string, date: string, time
 
         // 3. Fetch Reservations/Holdings from DynamoDB
         const pk = createPK(performanceId, date, time);
+        console.log(`[getSeatStatusMap] Querying PK: ${pk}`);
+
         const resResult = await dynamoDb.send(new QueryCommand({
             TableName: RESERVATIONS_TABLE,
             KeyConditionExpression: "PK = :pk",
             ExpressionAttributeValues: { ":pk": pk }
         }));
 
+        console.log(`[getSeatStatusMap] Found ${resResult.Items?.length || 0} items in DynamoDB`);
+
         (resResult.Items || []).forEach(item => {
             const seatId = item.SK.replace('SEAT#', '');
+            console.log(`[getSeatStatusMap] Item: seatId=${seatId}, status=${item.status}`);
             if (item.status === 'CONFIRMED') {
                 statusMap[seatId] = 'reserved';
             } else if (item.status === 'HOLDING' || item.status === 'DR_RECOVERED') {
