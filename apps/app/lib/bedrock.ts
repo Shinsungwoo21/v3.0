@@ -7,7 +7,7 @@ if (process.env.NODE_ENV === "development" && !process.env.AWS_PROFILE) {
 }
 
 export const bedrockClient = new BedrockRuntimeClient({
-  region: "ap-northeast-2",
+  region: process.env.AWS_REGION || "ap-northeast-2",
   // Credentials will be automatically resolved from:
   // 1. Environment variables (AWS_PROFILE set above)
   // 2. AWS credentials file (~/.aws/credentials)

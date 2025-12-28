@@ -3,8 +3,9 @@ import json
 from datetime import datetime, timedelta
 import re
 
+import os
 # AWS Configuration
-session = boto3.Session(region_name='ap-northeast-2')
+session = boto3.Session(region_name=os.environ.get('AWS_REGION', 'ap-northeast-2'))
 dynamodb = session.resource('dynamodb')
 
 PERFORMANCES_TABLE = "KDT-Msp4-PLDR-performances"

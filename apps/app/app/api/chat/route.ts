@@ -340,7 +340,7 @@ export async function POST(req: NextRequest) {
 
         const headers = new Headers({
             "Content-Type": "text/plain; charset=utf-8",
-            "X-Bedrock-Region": "ap-northeast-2",
+            "X-Bedrock-Region": process.env.AWS_REGION || "ap-northeast-2",
             "X-Bedrock-Model": initialModel,
             "X-Bedrock-Fallback": "false"
         });
