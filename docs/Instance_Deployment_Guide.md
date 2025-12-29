@@ -29,20 +29,17 @@ npm -v
 
 Web, App 인스턴스 모두 공통적으로 수행해야 하는 단계입니다.
 
-### ⚠️ 중요: Swap 메모리 설정 (저사양 인스턴스 필수)
-t2.micro 등 메모리가 작은(1GB) 인스턴스에서는 `npm install` 도중 서버가 멈출 수 있습니다.
-**배포를 시작하기 전에 아래 명령어로 Swap(가상 메모리)을 반드시 설정해 주세요.**
+### ⚠️ 중요: 인스턴스 타입 선택
 
-```bash
-# 1. 2GB 스왑 파일 생성 및 활성화
-sudo dd if=/dev/zero of=/swapfile bs=128M count=16
-sudo chmod 600 /swapfile
-sudo mkswap /swapfile
-sudo swapon /swapfile
+`npm install` 및 빌드 과정에서 메모리가 많이 필요합니다. 안정적인 배포를 위해 **t2.small (2GB RAM)** 이상을 권장합니다.
 
-# 2. 확인 (Swap 항목에 2.0Gi가 보이면 성공)
-free -h
-```
+| 인스턴스 타입 | RAM | 권장 용도 |
+|--------------|-----|----------|
+| t2.micro | 1GB | ❌ 권장하지 않음 (메모리 부족) |
+| **t2.small** | 2GB | ✅ 개발/테스트 환경 권장 |
+| t2.medium | 4GB | ✅ 프로덕션 환경 권장 |
+
+> 💡 **비용 참고**: t2.small은 t2.micro 대비 약 2배 비용이지만, 배포 안정성이 크게 향상됩니다.
 
 ### 소스 코드 복제 및 설치
 ```bash
