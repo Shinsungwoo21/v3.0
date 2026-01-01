@@ -35,7 +35,7 @@
 
 | 섹션 | 주요 내용 |
 |------|----------|
-| ⭐ 8. TTL 상세 | 자동 삭제 설정, holdExpiresAt 60초 |
+| ⭐ 8. TTL 상세 | 자동 삭제 설정, holdExpiresAt 10분 (V7.22) |
 | ⭐ 14. 인메모리 캐싱 | 7일 TTL, RCU 99%+ 절감 |
 | ⭐ 16. GSI 인프라 설정 | userId-index, 비용 최적화 |
 | ⭐ 17. 비정규화 전략 | JOIN 없이 단일 쿼리, 읽기 비용 절감 |
@@ -152,7 +152,7 @@
 ### 목적
 **좌석 선점(Holding)과 예약(Reservation)의 트랜잭션 상태**를 관리하는 핵심 테이블.
 - **좌석 1개 = 레코드 1개** 구조 (N명 예약 시 N개 레코드 생성)
-- 선점 시 60초 TTL 설정, 시간 초과 시 DynamoDB TTL로 자동 삭제
+- 선점 시 10분 TTL 설정 (V7.22: 60초 → 600초), 시간 초과 시 DynamoDB TTL로 자동 삭제
 - 예약 취소 시 7일간 보존 후 자동 삭제 (사용자 이력 조회용)
 - **DR_RECOVERED**: Main 리전에서 HOLDING 중 장애 발생 → DR 리전에서 15분 유예로 복구
 - **DR_RESERVED**: DR 리전에서 새로 예약한 건 (영구 보존)
@@ -172,7 +172,7 @@
 
 | 상태 | TTL 필드 | 만료 시간 | 동작 |
 |-----|---------|----------|------|
-| **HOLDING** | `holdExpiresAt` | **60초** | 만료 시 DynamoDB 자동 삭제 (좌석 해제) |
+| **HOLDING** | `holdExpiresAt` | **10분** | 만료 시 DynamoDB 자동 삭제 (좌석 해제) |
 | **DR_RECOVERED** | `ttl` | **15분** | Main에서 HOLDING 중 장애 → DR에서 복구, 15분 후 자동 삭제 |
 | **CANCELLED** | `ttl` | **7일** | 취소 후 7일간 보존 (사용자 이력), 이후 자동 삭제 |
 | **CONFIRMED** | - | 없음 | 영구 보존 - Main(서울) 리전 예약 |
@@ -205,7 +205,7 @@
 | `expiresAt` | S | `2025-12-28T05:11:00.000Z` | 만료 시간 (HOLDING용, ISO 8601) |
 | `confirmedAt` | S | `2025-12-28T05:10:30.000Z` | 예약 확정 시간 |
 | `cancelledAt` | S | `2025-12-28T06:00:00.000Z` | 취소 시간 |
-| `holdExpiresAt` | N | `1735365060` | **TTL 필드** (Unix timestamp, HOLDING 60초) |
+| `holdExpiresAt` | N | `1735365060` | **TTL 필드** (Unix timestamp, HOLDING 10분) |
 | `ttl` | N | `1735969860` | **TTL 필드** (Unix timestamp, CANCELLED 7일) |
 | `sourceRegion` | S | `ap-northeast-2` | 예약 생성 리전 (아래 상세 설명 참조) |
 
@@ -245,10 +245,10 @@
 │       │                                                         │
 │       ▼                                                         │
 │  ┌─────────┐                                                    │
-│  │ HOLDING │  ← holdExpiresAt = 현재시간 + 60초                  │
+│  │ HOLDING │  ← holdExpiresAt = 현재시간 + 10분                  │
 │  └────┬────┘                                                    │
 │       │                                                         │
-│       ├───── 60초 경과 ────→ [DynamoDB TTL 자동 삭제] (좌석 해제) │
+│       ├───── 10분 경과 ────→ [DynamoDB TTL 자동 삭제] (좌석 해제) │
 │       │                                                         │
 │       │ confirm_reservation 호출                                │
 │       ▼                                                         │
@@ -274,7 +274,7 @@
 │  [새 좌석 선택] (hold_seats 호출)                                 │
 │       ▼                                                         │
 │  ┌─────────┐                                                    │
-│  │ HOLDING │  ← holdExpiresAt = 현재시간 + 60초                  │
+│  │ HOLDING │  ← holdExpiresAt = 현재시간 + 10분                  │
 │  └────┬────┘                                                    │
 │       │ confirm_reservation 호출                                │
 │       ▼                                                         │
@@ -291,7 +291,7 @@
 │       │                    DR_RECOVERY_START_TIME=장애시점       │
 │       ▼                                                         │
 │  ┌─────────┐                                                    │
-│  │ HOLDING │  (60초 타이머 만료됨, 정상이면 삭제됐을 건)            │
+│  │ HOLDING │  (10분 타이머 만료됨, 정상이면 삭제됐을 건)            │
 │  └────┬────┘                                                    │
 │       │ 사용자가 DR 리전에서 confirm_reservation 호출             │
 │       ▼                                                         │
@@ -619,7 +619,7 @@ DynamoDB의 TTL(Time To Live) 기능은 **데이터 삭제 시점을 보장하�
 ### 4. TTL 계산 예시
 
 ```typescript
-// HOLDING (60초)
+// HOLDING (10분)
 const now = new Date();
 const holdExpiresAt = Math.floor(now.getTime() / 1000) + 60;
 
@@ -815,7 +815,7 @@ const result = await dynamoDb.send(new QueryCommand({
 |-----|------|
 | `getReservations()` | 예약 상태 실시간 반영 |
 | `getUserReservations()` | 사용자별 예약 실시간 조회 |
-| `getHoldings()` | 60초 선점 타이머 |
+| `getHoldings()` | 10분 선점 타이머 |
 | `getAvailableSeats()` | 잔여 좌석 실시간 계산 |
 | 모든 쓰기 작업 | DB 직접 반영 필수 |
 
@@ -844,7 +844,7 @@ private defaultTTL = parseInt(process.env.CACHE_TTL_MS || '604800000'); // 7일 
 
 | 상태 | 설명 | UI 표시 | 좌석 배치도 | TTL |
 |-----|------|---------|----------|-----|
-| `HOLDING` | 좌석 선점 중 | "선점 중 - 60초 내 결제 필요" | 황색 (선점) | 60초 |
+| `HOLDING` | 좌석 선점 중 | "선점 중 - 10분 내 결제 필요" | 황색 (선점) | 10분 |
 | `CONFIRMED` | **Main(서울)** 리전 예약 확정 | "✅ 예약 확정" | 회색 X (예약됨) | 없음 |
 | `DR_RESERVED` | **DR(도쿄)** 리전에서 처리된 모든 예약 | "✅ 예약 확정 (DR)" | 회색 X (예약됨) | 없음 |
 | `DR_RECOVERED` | Main에서 HOLDING 중 장애 → DR에서 복구 대기 | "⚠️ 복구됨 - 결제 진행 필요" | 황색 (선점) | 15분 |
@@ -856,21 +856,21 @@ private defaultTTL = parseInt(process.env.CACHE_TTL_MS || '604800000'); // 7일 
 |-----|---------|----------|----------|------------|
 | `CONFIRMED` | **Main(서울)** 리전에서 예약 완료 | ✅ 완료 | 회색 X | 없음 |
 | `DR_RESERVED` | **DR(도쿄)** 리전에서 처리된 모든 예약 | ✅ 완료 | 회색 X | 없음 |
-| `DR_RECOVERED` | Main에서 **HOLDING 중 장애** → DR에서 복구 대기 | ❌ 대기 | 황색 (선점) | [예약 계속하기] 또는 [취속하기] |
+| `DR_RECOVERED` | Main에서 **HOLDING 중 장애** → DR에서 복구 대기 | ❌ 대기 | 황색 (선점) | [예약 계속하기] 또는 [취소하기] |
 
 ### DR_RECOVERED가 필요한 이유
 
 ```
 정상 흐름 (Main 리전 - 서울):
-  HOLDING (60초) → 결제 → CONFIRMED  ← Main 리전 전용
+  HOLDING (10분) → 결제 → CONFIRMED  ← Main 리전 전용
 
 DR 리전 신규 예약 (도쿄):
-  HOLDING (60초) → 결제 → DR_RESERVED  ← DR 리전 예약
+  HOLDING (10분) → 결제 → DR_RESERVED  ← DR 리전 예약
 
 장애 복구 (Main에서 HOLDING 중 장애) - V7.22:
   [Main] HOLDING 중 → 장애 발생! → [DR 리전으로 Failover]
                           ↓
-              60초 타이머 만료됨 (정상이면 삭제)
+              10분 선점 타이머 만료됨 (정상이면 삭제)
               하지만 장애 상황이므로 사용자 보호 필요
                           ↓
   [DR] 사용자가 "내 예약" 페이지 접속
@@ -977,7 +977,7 @@ DR 리전 신규 예약 (도쿄):
 │               holdingId-index 사용 케이스                    │
 ├─────────────────────────────────────────────────────────────┤
 │                                                             │
-│  🔄 선점 확인 (60초 타이머)       → holdingId로 조회         │
+│  🔄 선점 확인 (10분 타이머)       → holdingId로 조회         │
 │  ✅ 예약 확정 처리                → holdingId로 조회         │
 │  ❌ 선점 취소 처리                → holdingId로 조회         │
 │                                                             │

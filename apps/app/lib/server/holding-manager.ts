@@ -88,7 +88,7 @@ export async function createHolding(
     const pk = createPK(performanceId, date, time);
     const holdingId = randomUUID();
     const now = new Date();
-    const HOLDING_TTL_SECONDS = 60; // 60 seconds TTL for POC
+    const HOLDING_TTL_SECONDS = 600; // 10분 TTL (V7.22: 60초 → 600초)
     const expiresAt = new Date(now.getTime() + HOLDING_TTL_SECONDS * 1000).toISOString();
     const ttl = Math.floor(now.getTime() / 1000) + HOLDING_TTL_SECONDS;
 
@@ -198,7 +198,7 @@ export async function getHolding(holdingId: string): Promise<Holding | null> {
 
         const first = items[0] as any;
         const now = new Date();
-        const expiresAtISO = new Date(now.getTime() + 60 * 1000).toISOString();
+        const expiresAtISO = new Date(now.getTime() + 600 * 1000).toISOString();  // V7.22: 10분 TTL
 
         const holding: Holding = {
             holdingId: (first.holdingId as string) || holdingId,

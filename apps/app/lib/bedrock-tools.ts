@@ -897,8 +897,8 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                     };
                 }
 
-                // 만료 시간: 1분 후
-                const expiresAt = result.expiresAt || new Date(Date.now() + 60 * 1000).toISOString();
+                // 만료 시간: 10분 후 (V7.22: 60초 → 600초)
+                const expiresAt = result.expiresAt || new Date(Date.now() + 600 * 1000).toISOString();
 
                 // [Issue 7] Verify _actions presence (Button logic)
                 return {
@@ -907,11 +907,11 @@ export async function executeTool(toolName: string, input: ToolInput): Promise<a
                     expiresAt: expiresAt,
                     releasedHoldings: releasedIds,
                     seatMapUrl: `/performances/${performanceId}/seats?date=${date}&time=${time}`,
-                    message: `좌석이 선점되었습니다. 1분 내에 확정해주세요.`,
+                    message: `좌석이 선점되었습니다. 10분 내에 확정해주세요.`,
 
                     // V7.2 Interactive Metadata
                     _timer: {
-                        duration: 60,
+                        duration: 600,  // V7.22: 10분 TTL
                         expiresAt: expiresAt
                     },
                     _actions: [
