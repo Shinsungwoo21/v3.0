@@ -7,17 +7,16 @@
  * APAC 리전 프로파일을 사용하여 레이턴시와 가용성을 최적화함
  */
 export const BEDROCK_MODELS = {
-    // Primary: Claude Haiku 4.5 (Base Model in Seoul)
-    // Cross-Region Profile logic:
-    // - Nova Lite (Secondary): Uses 'apac.amazon.nova-lite-v1:0' (Cross-Region supported)
-    // - Haiku 4.5 (Primary): Uses 'anthropic.claude-haiku-4-5-20251001-v1:0' (Base Model, no APAC profile yet)
+    // Primary: Claude Haiku 4.5 (Cross-Region Inference Profile)
+    // [V8.2] global. prefix 필수! on-demand 호출 미지원
+    // Cross-Region Inference Profile: global.anthropic.claude-haiku-4-5-20251001-v1:0
     PRIMARY: {
-        id: 'anthropic.claude-haiku-4-5-20251001-v1:0',
+        id: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
         name: 'Claude Haiku 4.5',
         provider: 'anthropic',
         description: '빠른 응답, 비용 효율적 (최신 v4.5)',
         maxTokens: 4096,
-        supportsPromptCaching: true,
+        supportsPromptCaching: false, // [V8.2] Cross-Region에서 캐싱 비활성화
     },
 
     // Secondary: Amazon Nova Lite (APAC Cross-Region)

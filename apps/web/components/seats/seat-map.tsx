@@ -81,8 +81,9 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
                             const rowData = row as RowData;
                             if ((!rowData.seats || rowData.seats.length === 0) && rowData.length) {
                                 const length = rowData.length;
+                                const floor = (section as any).floor || '1층';
                                 rowData.seats = Array.from({ length }, (_, i) => ({
-                                    seatId: `${section.sectionId}-${rowData.rowId}-${i + 1}`,
+                                    seatId: `${floor}-${section.sectionId}-${rowData.rowId}-${i + 1}`,
                                     seatNumber: i + 1,
                                     rowId: rowData.rowId,
                                     status: 'available' as SeatStatus,
@@ -98,24 +99,61 @@ export function SeatMap({ performanceId, date, time, isSubmitting, onSelectionCo
             const statusResponse = await apiClient.getSeatStatus(performanceId, date, time);
             const statusMap = statusResponse.seats || {};
 
+            // [V8.10 DEBUG] HOLDING 상태 좌석 확인
+            const holdingSeats = Object.entries(statusMap)
+                .filter(([_, status]) => (status as string).toUpperCase() === 'HOLDING');
+            if (holdingSeats.length > 0) {
+                console.log('[SeatMap] HOLDING seats from API:', holdingSeats.map(([id, status]) => ({ seatId: id, status })));
+            }
+
             if (requestId !== lastRequestIdRef.current) return;
 
             // Apply Status Map to Seats
+            let appliedHoldingCount = 0;
+
+            // [V8.17 DEBUG] seatId 매칭 디버그
+            const sampleStatusKeys = Object.keys(statusMap).filter(k => statusMap[k] === 'holding').slice(0, 3);
+            console.log('[SeatMap] Sample HOLDING keys from API:', sampleStatusKeys);
+
             if (data.sections) {
+                let sampleSeatIds: string[] = [];
                 data.sections.forEach((section: Section) => {
                     if (section.rows) {
                         section.rows.forEach((row: unknown) => {
                             const rowData = row as RowData;
                             if (rowData.seats) {
                                 rowData.seats.forEach(seat => {
+                                    // 샘플 수집 (첫 3개만)
+                                    if (sampleSeatIds.length < 3) {
+                                        sampleSeatIds.push(seat.seatId);
+                                    }
+
                                     if (statusMap[seat.seatId]) {
-                                        seat.status = statusMap[seat.seatId] as SeatStatus;
+                                        const newStatus = statusMap[seat.seatId] as SeatStatus;
+                                        seat.status = newStatus;
+
+                                        // [V8.10 DEBUG] HOLDING 적용 로그
+                                        if (newStatus.toUpperCase() === 'HOLDING') {
+                                            appliedHoldingCount++;
+                                            console.log('[SeatMap] Applied HOLDING to seat:', seat.seatId);
+                                        }
                                     }
                                 });
                             }
                         });
                     }
                 });
+
+                // [V8.17 DEBUG] seatId 형식 비교
+                if (holdingSeats.length > 0 && appliedHoldingCount === 0) {
+                    console.warn('[SeatMap] ⚠️ HOLDING seats NOT applied! Possible seatId mismatch:');
+                    console.warn('[SeatMap] API statusMap keys (sample):', sampleStatusKeys);
+                    console.warn('[SeatMap] Frontend seat.seatId (sample):', sampleSeatIds);
+                }
+            }
+
+            if (appliedHoldingCount > 0) {
+                console.log('[SeatMap] Total HOLDING seats applied:', appliedHoldingCount);
             }
 
             setVenueData(data)

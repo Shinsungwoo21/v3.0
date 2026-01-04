@@ -83,12 +83,13 @@ export async function createHolding(
     venue?: string,           // V7.18: 비정규화 필드
     performanceTitle?: string, // V7.18: 비정규화 필드
     posterUrl?: string        // V7.20: 비정규화 필드
-): Promise<{ success: boolean; holdingId?: string; error?: string; expiresAt?: string; remainingSeconds?: number; unavailableSeats?: string[] }> {
+): Promise<{ success: boolean; holdingId?: string; error?: string; expiresAt?: string; expiresAtText?: string; remainingSeconds?: number; unavailableSeats?: string[] }> {
 
     const pk = createPK(performanceId, date, time);
     const holdingId = randomUUID();
     const now = new Date();
-    const HOLDING_TTL_SECONDS = 600; // 10분 TTL (V7.22: 60초 → 600초)
+    // V7.22: 10분 TTL (600초)
+    const HOLDING_TTL_SECONDS = 600;
     const expiresAt = new Date(now.getTime() + HOLDING_TTL_SECONDS * 1000).toISOString();
     const ttl = Math.floor(now.getTime() / 1000) + HOLDING_TTL_SECONDS;
 
@@ -148,10 +149,18 @@ export async function createHolding(
                     time,
                     createdAt: now.toISOString(),
                     expiresAt: expiresAt,
-                    holdExpiresAt: ttl, // DynamoDB TTL field
+                    holdExpiresAt: ttl, // Business logic field
+                    ttl: ttl, // DynamoDB TTL field (Universal)
                     sourceRegion: sourceRegion // V7.18: 환경변수에서 읽은 값 사용
                 },
-                ConditionExpression: "attribute_not_exists(PK) AND attribute_not_exists(SK)"
+                ConditionExpression: "attribute_not_exists(SK) OR (expiresAt < :now AND #s = :h_status)",
+                ExpressionAttributeNames: {
+                    "#s": "status"
+                },
+                ExpressionAttributeValues: {
+                    ":now": now.toISOString(),
+                    ":h_status": "HOLDING"
+                }
             }
         }));
 
@@ -159,7 +168,15 @@ export async function createHolding(
             TransactItems: puts
         }));
 
-        return { success: true, holdingId, expiresAt, remainingSeconds: HOLDING_TTL_SECONDS };
+        // [V8.3] KST 시간 포맷 (AI가 변환하지 않도록 서버에서 제공)
+        const expiresAtText = new Intl.DateTimeFormat('ko-KR', {
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false,
+            timeZone: 'Asia/Seoul'
+        }).format(new Date(expiresAt));
+
+        return { success: true, holdingId, expiresAt, expiresAtText, remainingSeconds: HOLDING_TTL_SECONDS };
     } catch (error: any) {
         if (error.name === 'TransactionCanceledException') {
             return { success: false, error: "이미 예약된 좌석이 포함되어 있습니다." };
@@ -173,6 +190,7 @@ export async function createHolding(
 
 /**
  * 4. Get holding by ID (DynamoDB Only)
+ * [V8.13 FIX] totalPrice, performanceTitle, venue, 등급별 색상 추가
  * Note: Since we don't have a GSI for holdingId yet, this is a Scan (not ideal).
  * But for a small POC / MVP, we can keep it or use Query if we change index.
  */
@@ -200,29 +218,78 @@ export async function getHolding(holdingId: string): Promise<Holding | null> {
         const now = new Date();
         const expiresAtISO = new Date(now.getTime() + 600 * 1000).toISOString();  // V7.22: 10분 TTL
 
+
+        // [V8.17 FIX] 등급별 색상 매핑 - DB seatColors와 일치
+        const gradeColors: Record<string, string> = {
+            'OP': '#9E37D1',   // 보라색 (오케스트라 피트)
+            'VIP': '#FF0000',  // 빨간색
+            'R': '#FFA500',    // 주황색
+            'S': '#1E90FF',    // 파란색
+            'A': '#32CD32',    // 초록색
+        };
+
+
+        // [V8.13 FIX] seats 매핑 시 price와 color 포함
+        const seats = items.map((i: any) => ({
+            seatId: (i.seatId as string) || "",
+            seatNumber: (i.seatNumber as number) || 0,
+            rowId: (i.rowId as string) || 'unknown',
+            grade: (i.grade as string) || 'S',
+            price: (i.price as number) || 0,
+            color: gradeColors[(i.grade as string)] || '#333333',  // [V8.13] 등급별 색상
+            status: 'holding' as any
+        }));
+
+        // [V8.13 FIX] totalPrice 계산
+        const totalPrice = seats.reduce((sum, seat) => sum + (seat.price || 0), 0);
+
+        // [V8.13 FIX] performanceTitle, venue 가져오기 (DB 저장값 우선, 없으면 조회)
+        let performanceTitle = (first.performanceTitle as string) || '';
+        let venue = (first.venue as string) || '';
+
+        // DB에 저장된 값이 없으면 공연 정보에서 조회
+        if (!performanceTitle || !venue) {
+            try {
+                const perf = await getPerformance(first.performanceId);
+                if (perf) {
+                    performanceTitle = performanceTitle || perf.title || "알 수 없는 공연";
+                    venue = venue || (perf.venue as any)?.name || perf.venue || "샤롯데씨어터";
+                }
+            } catch (e) {
+                console.warn('[getHolding] Failed to fetch performance info:', e);
+            }
+        }
+
         const holding: Holding = {
             holdingId: (first.holdingId as string) || holdingId,
             performanceId: (first.performanceId as string) || "",
+            performanceTitle: performanceTitle,  // [V8.13 FIX] 추가
+            venue: venue,                        // [V8.13 FIX] 추가
             date: (first.date as string) || "",
             time: (first.time as string) || "",
             userId: (first.userId as string) || "",
-            seats: items.map((i: any) => ({
-                seatId: (i.seatId as string) || "",
-                seatNumber: (i.seatNumber as number) || 0,
-                rowId: (i.rowId as string) || 'unknown',
-                grade: (i.grade as string) || 'S',
-                price: (i.price as number) || 0,
-                status: 'holding' as any
-            })),
+            seats: seats,
+            totalPrice: totalPrice,              // [V8.13 FIX] 추가
             createdAt: (first.createdAt as string) || now.toISOString(),
             expiresAt: (first.expiresAt as string) || expiresAtISO
         };
+
+        console.log('[getHolding] Returning holding:', {
+            holdingId,
+            performanceTitle,
+            venue,
+            totalPrice,
+            seatCount: seats.length,
+            seatIds: seats.map(s => s.seatId)
+        });
+
         return holding;
     } catch (error) {
         console.error(`[HoldingManager] Error getting holding:`, error);
         return null;
     }
 }
+
 
 /**
  * 5. Release specific holding
@@ -299,6 +366,12 @@ export async function confirmReservation(
         const now = new Date();
         const nowISO = now.toISOString();
         const first = items[0];
+
+        // [V8.4] 만료된 선점 확인 (TTL 지연 대비)
+        // DR_RECOVERED의 경우 15분 유예가 있으므로 HOLDING 상태일 때만 체크
+        if (first.status === 'HOLDING' && first.expiresAt && new Date(first.expiresAt) < now) {
+            return { success: false, error: '선점 시간이 만료되었습니다. 다시 좌석을 선택해주세요.' };
+        }
 
         // --- Denormalization Check (V7.8) ---
         let finalPosterUrl = posterUrl;
@@ -513,6 +586,80 @@ export async function getSeatStatusMap(performanceId: string, date: string, time
     }
 
     return statusMap;
+}
+
+
+/**
+ * [V8.9.2] Get Single Holding by ID (for Payment Page Restore)
+ */
+export async function getHoldingForPayment(holdingId: string): Promise<{
+    holdingId: string;
+    performanceId: string;
+    performanceTitle: string;
+    venue: string;
+    date: string;
+    time: string;
+    totalPrice: number;
+    seats: { seatId: string; price: number; grade: string; color?: string }[];
+    expiresAt: string;
+    sections?: any[]; // for seat number calculation
+} | null> {
+    try {
+        console.log(`[getHolding] Querying holdingId: ${holdingId}`);
+
+        // GSI holdingId-index 조회
+        const result = await dynamoDb.send(new QueryCommand({
+            TableName: RESERVATIONS_TABLE,
+            IndexName: 'holdingId-index',
+            KeyConditionExpression: "holdingId = :hid",
+            ExpressionAttributeValues: { ":hid": holdingId }
+        }));
+
+        const items = result.Items || [];
+        if (items.length === 0) {
+            console.log(`[getHolding] Not found for ${holdingId}`);
+            return null;
+        }
+
+        const firstItem = items[0];
+
+        // Performance 정보 fetch (sections 등을 위해)
+        let sections = [];
+        try {
+            // 순환 참조 방지를 위해 performance-service를 직접 import하지 않고, 
+            // 필요한 정보만 DB 아이템에서 최대한 가져오거나, api-client는 클라이언트용이라 못씀.
+            // 여기서는 DB에 저장된 정보 위주로 복원. sections가 없으면 seat number 계산이 정확하지 않을 수 있음.
+            // 하지만 보통 holding 생성 시점엔 sections 정보가 저장되지 않음.
+            // 필요하다면 performanceId로 performance 조회 로직을 추가해야 함.
+            // 일단은 클라이언트에서 performanceId로 다시 fetch하도록 유도하거나, 여기서 performanceService를 import.
+        } catch (e) { }
+
+        const seats = items.map(item => ({
+            seatId: item.seatId,
+            price: item.price || 0,
+            grade: item.grade || 'Unknown',
+            color: item.color || '#333'
+        }));
+
+        const totalPrice = seats.reduce((sum, seat) => sum + seat.price, 0);
+
+        return {
+            holdingId: firstItem.holdingId,
+            performanceId: firstItem.performanceId,
+            performanceTitle: firstItem.performanceTitle,
+            venue: firstItem.venue,
+            date: firstItem.date,
+            time: firstItem.time,
+            totalPrice,
+            seats,
+            expiresAt: firstItem.expiresAt,
+            sections: []
+        };
+
+    } catch (error) {
+        console.error(`[getHolding] Error:`, error);
+        return null;
+    }
 }
 
 /**

@@ -67,7 +67,7 @@ class ApiClient {
         return res.json();
     }
 
-    async chat(messages: unknown[], modelId: string, userId?: string) {
+    async chat(messages: unknown[], modelId: string, userId?: string, sessionId?: string) {
         const url = `${this.baseUrl}/api/chat`;
         return fetch(url, {
             method: 'POST',
@@ -75,7 +75,8 @@ class ApiClient {
             body: JSON.stringify({
                 messages,
                 modelId,
-                userId
+                userId,
+                sessionId  // [V8.0] 세션 상태 관리용
             })
         });
     }

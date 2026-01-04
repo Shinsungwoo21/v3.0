@@ -20,5 +20,11 @@ dist/
 Thumbs.db
 
 
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+
 # TurboRepo
 .turbo/

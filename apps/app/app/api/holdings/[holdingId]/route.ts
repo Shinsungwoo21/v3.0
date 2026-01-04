@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { releaseHolding } from "@/lib/server/holding-manager";
+import { releaseHolding, getHolding } from "@/lib/server/holding-manager";
 
 type Props = {
     params: Promise<{
@@ -40,5 +40,28 @@ export async function DELETE(
             { success: false, error: "Internal Server Error" },
             { status: 500 }
         );
+    }
+}
+
+export async function GET(
+    request: NextRequest,
+    props: Props
+) {
+    const params = await props.params;
+    try {
+        const { holdingId } = params;
+        if (!holdingId) {
+            return NextResponse.json({ error: 'Missing holding ID' }, { status: 400 });
+        }
+
+        const holding = await getHolding(holdingId);
+        if (!holding) {
+            return NextResponse.json({ error: 'Holding not found or expired' }, { status: 404 });
+        }
+
+        return NextResponse.json(holding);
+    } catch (error) {
+        console.error('[API] Get Holding Error:', error);
+        return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
     }
 }

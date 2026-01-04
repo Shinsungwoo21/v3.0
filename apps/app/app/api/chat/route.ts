@@ -3,7 +3,14 @@ export const dynamic = 'force-dynamic';
 import { ConverseStreamCommand, Message, ToolResultBlock, ContentBlock, ToolUseBlock, ConverseStreamCommandInput, BedrockRuntimeServiceException } from "@aws-sdk/client-bedrock-runtime";
 import { NextRequest, NextResponse } from "next/server";
 import { BEDROCK_TOOLS, executeTool } from "@/lib/bedrock-tools";
-import { SYSTEM_PROMPT } from "@/lib/system-prompt";
+import {
+    composeSystemPrompt,
+    getState,
+    updateState,
+    extractContextFromMessage,
+    extractContextFromToolResults,
+    estimateTokenCount,
+} from '@/lib/prompts';
 import { ThinkingTagFilter } from "@/lib/utils/stream-filter";
 
 import { BEDROCK_MODELS, FALLBACK_CONFIG } from "@/lib/constants/bedrock-config";
@@ -45,7 +52,10 @@ async function invokeBedrockWithRetry(
             model: modelId,
             attempt,
             errorCode,
-            statusCode
+            statusCode,
+            // [V8.2] ValidationException 상세 원인 파악용
+            errorMessage: error.message || 'No message',
+            errorDetails: error.toString()
         }));
 
         // Check if we should retry
@@ -88,7 +98,8 @@ async function processConverseStream(
         inferenceConfig: {
             maxTokens: 4096,
             temperature: 0.7,
-            topP: 0.9,
+            // [V8.2] Cross-Region Inference에서는 temperature와 top_p 동시 사용 불가
+            // top_p: 0.9, // 제거됨
         },
     };
 
@@ -140,6 +151,7 @@ async function processConverseStream(
                     if (!toolUseDetected) {
                         const filtered = filter.process(txt);
                         if (filtered) {
+                            (controller as any)._generatedText = ((controller as any)._generatedText || "") + filtered;
                             controller.enqueue(new TextEncoder().encode(filtered));
                             hasStreamed = true;
                         }
@@ -158,7 +170,7 @@ async function processConverseStream(
                         try {
                             currentToolUse.input = JSON.parse(currentToolUse.input);
                         } catch (e) {
-                            console.error(`[ToolInputParseError] ${currentToolUse.name}:`, e);
+                            console.warn(`[ToolInputParseWarning] ${currentToolUse.name}: JSON input incomplete (streaming chunk), fallback to empty object.`);
                             // Fallback to empty object if parsing fails to avoid fatal validation error
                             currentToolUse.input = {};
                         }
@@ -185,6 +197,7 @@ async function processConverseStream(
         if (!toolUseDetected) {
             const remaining = filter.flush();
             if (remaining) {
+                (controller as any)._generatedText = ((controller as any)._generatedText || "") + remaining;
                 controller.enqueue(new TextEncoder().encode(remaining));
                 hasStreamed = true;
             }
@@ -194,6 +207,8 @@ async function processConverseStream(
 
         // [V7.14] EMF: Log Success with Token Usage
         const latencyMs = Date.now() - startTime;
+        // [TEST MODE] CloudWatch EMF 메트릭 비활성화 - 프로덕션 배포 시 주석 해제
+        /*
         console.log(JSON.stringify({
             service: "MegaTicket-Chatbot",
             event: "BedrockInvokeSuccess",
@@ -215,6 +230,7 @@ async function processConverseStream(
                 }]
             }
         }));
+        */
 
         // Logic for Tools
         const toolUseBlocks = generatedContentBlocks.filter(b => b.toolUse);
@@ -241,7 +257,27 @@ async function processConverseStream(
 
                     try {
                         const result = await executeTool(name || "unknown", parsedInput);
-                        console.log(`[ToolSuccess] ${name} result size:`, JSON.stringify(result).length);
+                        // [TEST MODE] 도구 성공 로그 비활성화 - 프로덕션 배포 시 주석 해제
+                        // console.log(`[ToolSuccess] ${name} result size:`, JSON.stringify(result).length);
+
+                        // [V8.22] FAIL-SAFE UI Injection
+                        const isHoldingTool = (name === 'hold_seats' || name === 'create_holding');
+
+                        if (isHoldingTool && result.success && result.holdingId) {
+                            if (result._actionDataForResponse) {
+                                // 정상 케이스
+                                console.log('[UI_INJECT] ACTION_DATA found from tool result.');
+                                (controller as any)._pendingActionData = result._actionDataForResponse;
+                            } else {
+                                // ⚠️ Fail-safe: 데이터 누락 시 강제 생성
+                                console.warn('[FAIL-SAFE] ACTION_DATA missing! Generating fallback UI data.');
+                                const perfId = parsedInput.performanceId || 'unknown';
+                                const date = parsedInput.date || '';
+                                const time = parsedInput.time || '';
+                                (controller as any)._pendingActionData = generateActionData(result, perfId, date, time);
+                            }
+                        }
+
                         toolResults.push({
                             toolUseId: toolUseId || "unknown",
                             content: [{ json: result }],
@@ -260,6 +296,21 @@ async function processConverseStream(
 
             nextMessages.push({ role: "user", content: toolResults.map(r => ({ toolResult: r })) });
             await processConverseStream(nextMessages, systemPrompt, controller, usedModel, depth + 1, isFallback);
+
+            // [V8.17 FIX] 재귀 완료 후 depth 관계없이 pendingActionData 스트림 주입
+            // (재귀 가장 마지막에 실행되므로 AI 응답 끝에 추가됨)
+            const pendingActionData = (controller as any)._pendingActionData;
+            // [V8.22] 중복 주입 방지 Check
+            const fullText = (controller as any)._generatedText || "";
+
+            if (pendingActionData && !fullText.includes('[[ACTION_DATA]]')) {
+                console.log('[AUTO_INJECT] Appending ACTION_DATA to stream (depth=' + depth + ')');
+                controller.enqueue(new TextEncoder().encode('\n\n' + pendingActionData));
+                (controller as any)._pendingActionData = null; // 중복 방지
+            } else if (pendingActionData) {
+                console.log('[UI_INJECT] Injection skipped - ACTION_DATA already exists.');
+                (controller as any)._pendingActionData = null;
+            }
         }
 
     } catch (e: any) {
@@ -272,7 +323,8 @@ async function processConverseStream(
                 e.name === 'TimeoutError' || e.name === 'ModelTimeoutException'; // AbortSignal timeout
 
             if (isValidFallbackTrigger) {
-                // [V7.14] EMF: Fallback Logging
+                // [TEST MODE] Fallback EMF 메트릭 비활성화 - 프로덕션 배포 시 주석 해제
+                /*
                 console.warn(JSON.stringify({
                     service: "MegaTicket-Chatbot",
                     event: "FallbackTriggered",
@@ -292,6 +344,7 @@ async function processConverseStream(
                         }]
                     }
                 }));
+                */
 
                 await processConverseStream(messages, systemPrompt, controller, BEDROCK_MODELS.SECONDARY.id, depth + 1, true);
                 return;
@@ -306,9 +359,37 @@ async function processConverseStream(
     }
 }
 
+// [V8.22] Helper for Fail-safe UI Data Generation
+function generateActionData(result: any, performanceId: string, date: string, time: string) {
+    const region = process.env.AWS_REGION || 'ap-northeast-2';
+    const expiresAt = result.expiresAt || new Date(Date.now() + 600 * 1000).toISOString();
+    const holdingId = result.holdingId;
+
+    // URL 생성
+    const payUrl = `/reservation/confirm?holdingId=${holdingId}&expiresAt=${encodeURIComponent(expiresAt)}&region=${region}`;
+    const seatMapUrl = `/performances/${performanceId}/seats?date=${date}&time=${time}&region=${region}`;
+
+    // JSON 구성
+    const data = {
+        timer: {
+            expiresAt,
+            holdingId,
+            message: "선점 시간 (Fail-safe Generated)",
+            warningThreshold: 30
+        },
+        actions: [
+            { id: "pay", label: "결제 진행", action: "navigate", url: payUrl, target: "_blank", style: "primary" },
+            { id: "cancel", label: "선점 취소", action: "send", text: "선점 취소할래", style: "danger" },
+            { id: "seat_map", label: "좌석 배치도 보기", action: "navigate", url: seatMapUrl, target: "_blank", style: "default" }
+        ]
+    };
+
+    return `[[ACTION_DATA]]\n${JSON.stringify(data)}\n[[/ACTION_DATA]]`;
+}
+
 export async function POST(req: NextRequest) {
     try {
-        const { messages, userId, modelId } = await req.json();
+        const { messages, userId, modelId, sessionId } = await req.json();
 
         if (!messages || !Array.isArray(messages)) {
             return NextResponse.json({ error: "Messages array is required" }, { status: 400 });
@@ -331,9 +412,37 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
-        let systemPromptText = SYSTEM_PROMPT;
+        // [V8.0] 세션 상태 기반 프롬프트 조립
+        const effectiveSessionId = sessionId || `anonymous_${Date.now()}`;
+        const state = getState(effectiveSessionId);
+
+        // 마지막 사용자 메시지에서 컨텍스트 추출
+        const lastUserText = lastMessage?.content?.[0]?.text || lastMessage?.content || '';
+        const messageContext = extractContextFromMessage(state.currentStep, lastUserText as string);
+
+        // 단계별 시스템 프롬프트 조립
+        let systemPromptText = composeSystemPrompt(
+            state.currentStep,
+            { ...state.context, ...messageContext }
+        );
+
+        // 기존 컨텍스트 추가 (userId, 시간)
         if (userId) systemPromptText += `\n\n[User Context]\n- Current User ID: "${userId}"`;
         systemPromptText += `\n\n[Current Time]: ${new Date().toLocaleString('ko-KR', { timeZone: 'Asia/Seoul' })}`;
+
+        // [V8.0] 토큰 추정 로깅 (CloudWatch EMF 형식)
+        const estimatedTokens = estimateTokenCount(systemPromptText);
+        // [TEST MODE] 프롬프트 구성 로그 비활성화 - 프로덕션 배포 시 주석 해제
+        /*
+        console.log(JSON.stringify({
+            service: "MegaTicket-Chatbot",
+            event: "PromptComposed",
+            sessionId: effectiveSessionId,
+            currentStep: state.currentStep,
+            estimatedTokens,
+            contextSize: Object.keys(state.context).length,
+        }));
+        */
 
         // Model Selection Logic
         let initialModel = modelId || BEDROCK_MODELS.PRIMARY.id;

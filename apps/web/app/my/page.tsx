@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Suspense, useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Reservation, ReservationCard } from "@/components/reservation-card"
@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import Link from "next/link"
 import { Ticket, Loader2 } from "lucide-react"
 
-export default function MyPage() {
+function MyPageContent() {
     const { user, isLoading } = useAuth()
     const router = useRouter()
     const searchParams = useSearchParams()  // V7.18: URL 쿼리에서 region 우선 사용
@@ -151,5 +151,19 @@ export default function MyPage() {
                 </div>
             )}
         </div>
+    )
+}
+
+// [V8.0] Suspense 래퍼 - Next.js 15 useSearchParams 호환
+export default function MyPage() {
+    return (
+        <Suspense fallback={
+            <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <p className="text-gray-500">페이지 로딩 중...</p>
+            </div>
+        }>
+            <MyPageContent />
+        </Suspense>
     )
 }

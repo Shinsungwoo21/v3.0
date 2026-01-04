@@ -1,0 +1,126 @@
+# =============================================================================
+# IAM Roles and Policies - Seoul Test
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# EC2 IAM Role (SSM + DynamoDB + Bedrock + CloudWatch)
+# -----------------------------------------------------------------------------
+resource "aws_iam_role" "ec2_role" {
+  name = "${var.project_name}-EC2-Role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Action = "sts:AssumeRole"
+        Effect = "Allow"
+        Principal = {
+          Service = "ec2.amazonaws.com"
+        }
+      }
+    ]
+  })
+
+  tags = {
+    Name = "${var.project_name}-EC2-Role"
+  }
+}
+
+# -----------------------------------------------------------------------------
+# SSM 관리형 정책 연결
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy_attachment" "ssm" {
+  role       = aws_iam_role.ec2_role.name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+}
+
+# -----------------------------------------------------------------------------
+# Bedrock 액세스 정책 (인라인)
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy" "bedrock_policy" {
+  name = "${var.project_name}-Bedrock-Policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "BedrockInvoke"
+        Effect = "Allow"
+        Action = [
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
+        ]
+        Resource = [
+          "arn:aws:bedrock:*::foundation-model/anthropic.*",
+          "arn:aws:bedrock:*::foundation-model/amazon.*"
+        ]
+      }
+    ]
+  })
+}
+
+# -----------------------------------------------------------------------------
+# DynamoDB 최소 권한 정책 (인라인)
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy" "dynamodb_policy" {
+  name = "${var.project_name}-DynamoDB-MinimalAccess"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "DynamoDBMinimalAccess"
+        Effect = "Allow"
+        Action = [
+          "dynamodb:GetItem",
+          "dynamodb:PutItem",
+          "dynamodb:UpdateItem",
+          "dynamodb:DeleteItem",
+          "dynamodb:Query",
+          "dynamodb:Scan",
+          "dynamodb:TransactWriteItems",
+          "dynamodb:BatchWriteItem",
+          "dynamodb:BatchGetItem"
+        ]
+        Resource = [
+          "arn:aws:dynamodb:${var.aws_region}:626614672806:table/${var.dynamodb_table_prefix}-*",
+          "arn:aws:dynamodb:${var.aws_region}:626614672806:table/${var.dynamodb_table_prefix}-*/index/*"
+        ]
+      }
+    ]
+  })
+}
+
+# -----------------------------------------------------------------------------
+# CloudWatch Logs 정책 (인라인)
+# -----------------------------------------------------------------------------
+resource "aws_iam_role_policy" "cloudwatch_policy" {
+  name = "${var.project_name}-CloudWatch-Policy"
+  role = aws_iam_role.ec2_role.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid    = "CloudWatchLogs"
+        Effect = "Allow"
+        Action = [
+          "logs:CreateLogGroup",
+          "logs:CreateLogStream",
+          "logs:PutLogEvents"
+        ]
+        Resource = "arn:aws:logs:*:*:*"
+      }
+    ]
+  })
+}
+
+# -----------------------------------------------------------------------------
+# Instance Profile
+# -----------------------------------------------------------------------------
+resource "aws_iam_instance_profile" "ec2_profile" {
+  name = "${var.project_name}-EC2-Profile"
+  role = aws_iam_role.ec2_role.name
+}

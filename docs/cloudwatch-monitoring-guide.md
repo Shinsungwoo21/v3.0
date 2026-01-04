@@ -1,6 +1,6 @@
 # MegaTicket Chatbot - CloudWatch 모니터링 가이드
 
-> **Version**: V7.14 | **Last Updated**: 2025-12-27
+> **Version**: V8.1 | **Last Updated**: 2026-01-04
 
 ## 1. 아키텍처 개요
 
@@ -126,26 +126,13 @@ CloudWatch > Metrics > Custom Namespaces > MegaTicket/Bedrock
 
 ### 4.1 성공 로그 (`BedrockInvokeSuccess`)
 
-**위치**: `apps/app/app/api/chat/route.ts` (라인 195-217)
+**위치**: `apps/app/app/api/chat/route.ts` (라인 202-224)
+
+> ⚠️ **현재 상태**: 테스트 비용 절감을 위해 **주석처리됨** (V8.1)
 
 ```typescript
-// [V7.14] EMF: Token Usage Capture
-let usage = { inputTokens: 0, outputTokens: 0 };
-
-for await (const event of response.stream) {
-  // ... 스트림 처리 ...
-  
-  // metadata 이벤트에서 usage 추출
-  if (event.metadata?.usage) {
-    usage = {
-      inputTokens: event.metadata.usage.inputTokens ?? 0,
-      outputTokens: event.metadata.usage.outputTokens ?? 0
-    };
-  }
-}
-
-// EMF 형식 로그 출력
-const latencyMs = Date.now() - startTime;
+// [TEST MODE] CloudWatch EMF 메트릭 비활성화 - 프로덕션 배포 시 주석 해제
+/*
 console.log(JSON.stringify({
   service: "MegaTicket-Chatbot",
   event: "BedrockInvokeSuccess",
@@ -156,103 +143,65 @@ console.log(JSON.stringify({
   OutputTokens: usage.outputTokens,
   _aws: {
     Timestamp: Date.now(),
-    CloudWatchMetrics: [{
-      Namespace: "MegaTicket/Bedrock",
-      Dimensions: [["Model"], ["Model", "IsFallback"]],
-      Metrics: [
-        { Name: "Latency", Unit: "Milliseconds" },
-        { Name: "InputTokens", Unit: "Count" },
-        { Name: "OutputTokens", Unit: "Count" }
-      ]
-    }]
+    CloudWatchMetrics: [{ ... }]
   }
 }));
+*/
 ```
 
 ### 4.2 Fallback 로그 (`FallbackTriggered`)
 
-**위치**: `apps/app/app/api/chat/route.ts` (라인 274-294)
+**위치**: `apps/app/app/api/chat/route.ts` (라인 282-301)
+
+> ⚠️ **현재 상태**: 테스트 비용 절감을 위해 **주석처리됨** (V8.1)
 
 ```typescript
-if (isValidFallbackTrigger) {
-  console.warn(JSON.stringify({
-    service: "MegaTicket-Chatbot",
-    event: "FallbackTriggered",
-    primaryModel: BEDROCK_MODELS.PRIMARY.id,
-    fallbackModel: BEDROCK_MODELS.SECONDARY.id,
-    Reason: e.name || "Unknown",
-    statusCode: statusCode,
-    FallbackCount: 1,
-    _aws: {
-      Timestamp: Date.now(),
-      CloudWatchMetrics: [{
-        Namespace: "MegaTicket/Bedrock",
-        Dimensions: [["Reason"]],
-        Metrics: [
-          { Name: "FallbackCount", Unit: "Count" }
-        ]
-      }]
-    }
-  }));
-  
-  // Secondary 모델로 전환
-  await processConverseStream(..., BEDROCK_MODELS.SECONDARY.id, ...);
-}
+// [TEST MODE] Fallback EMF 메트릭 비활성화 - 프로덕션 배포 시 주석 해제
+/*
+console.warn(JSON.stringify({
+  service: "MegaTicket-Chatbot",
+  event: "FallbackTriggered",
+  Reason: e.name || "Unknown",
+  FallbackCount: 1,
+  _aws: { CloudWatchMetrics: [{ ... }] }
+}));
+*/
 ```
 
 ---
 
-## 5. 비용 최적화
+## 5. 테스트 모드 설정 (V8.1)
 
-### 5.1 비용 비교
+### 5.1 현재 상태
 
-| 비용 항목 | 기존 (PutMetricData) | EMF (현재) | 절감 |
-|----------|---------------------|------------|------|
-| API 호출 비용 | $0.01/1,000 metrics | **$0** | **100%** |
-| 로그 수집 비용 | 없음 | $0.50/GB | 유지 |
-| 로그 저장 비용 | 없음 (메트릭만) | $0.03/GB/월 | 유지 |
+테스트 비용 절감을 위해 아래 로그들이 **주석처리**되어 있습니다:
 
-> **핵심**: EMF는 로그에 메트릭 정보를 포함하므로, 별도 API 호출 없이 CloudWatch가 자동으로 메트릭 추출
+| 파일 | 라인 | 이벤트 | 상태 |
+|------|------|--------|------|
+| `route.ts` | L204-224 | `BedrockInvokeSuccess` | ⏸️ 주석처리 |
+| `route.ts` | L252-253 | `[ToolSuccess]` | ⏸️ 주석처리 |
+| `route.ts` | L283-303 | `FallbackTriggered` | ⏸️ 주석처리 |
+| `route.ts` | L357-366 | `PromptComposed` | ⏸️ 주석처리 |
+| `route.ts` | L49-56 | `BedrockInvokeError` | ✅ **활성화 유지** |
 
-### 5.2 예상 월 비용 (1,000req/day 기준)
+### 5.2 프로덕션 배포 시 활성화
 
-```
-기존 방식:
-- PutMetricData: 1,000 × 30 × $0.01/1,000 = $0.30/월
-- (+ 네트워크 Latency로 인한 UX 저하)
+`route.ts` 파일에서 `[TEST MODE]` 주석을 찾아 블록 주석(`/* ... */`)을 해제합니다:
 
-EMF 방식:
-- 로그 크기: ~500 bytes/req
-- 월 로그량: 500 × 1,000 × 30 = 15MB
-- 로그 수집: 15MB × $0.50/GB = $0.0075/월
-- 로그 저장: 15MB × $0.03/GB = $0.00045/월
-- 합계: ~$0.01/월
-
-👉 약 97% 비용 절감 + 응답 속도 개선
+```typescript
+// [TEST MODE] CloudWatch EMF 메트릭 비활성화 - 프로덕션 배포 시 주석 해제
+// /* ← 이 줄과
+console.log(JSON.stringify({ ... }));
+// */ ← 이 줄을 삭제
 ```
 
-### 5.3 추가 비용 최적화 방안
+### 5.3 비용 절감 효과
 
-#### ✅ Log Retention 설정: **7일**
-- AWS Console > CloudWatch > Log Groups > (애플리케이션 로그 그룹)
-- `Actions` → `Edit retention setting` → **7 days**
-- 7일 이상 된 로그는 자동 삭제되어 저장 비용 절감
-
-#### ✅ V7.14에서 제거된 불필요 로그
-
-| 파일 | 제거된 로그 패턴 | 설명 |
-|------|-----------------|------|
-| `performance-service.ts` | `[STATIC] [PERF] [Cache HIT]` | 캐시 히트 알림 |
-| `performance-service.ts` | `[STATIC] [PERF] [Cache MISS]` | 캐시 미스 알림 |
-| `performance-service.ts` | `[STATIC] [PERF] [Cache EXPIRED]` | 캐시 만료 알림 |
-| `holding-manager.ts` | `[REALTIME] Expired holding allowed for reuse` | 만료 홀딩 재사용 알림 |
-| `holding-manager.ts` | `[REALTIME] Expired holding ignored` | 만료 홀딩 무시 알림 |
-| `holding-manager.ts` | `[HOLDING] createHolding called` | 홀딩 생성 호출 알림 |
-
-> 이 로그들은 인프라 상태 확인용으로, AI 서비스 모니터링에는 불필요하여 제거됨
-
-#### 📌 Metric Filter (선택)
-필요시 로그에서 추가 메트릭 추출 가능
+| 상태 | 예상 비용/월 |
+|------|-------------|
+| 모든 로그 활성화 | ~$20-50 |
+| 테스트 모드 (현재) | ~$1-3 |
+| **절감액** | **~$20-45** |
 
 ---
 

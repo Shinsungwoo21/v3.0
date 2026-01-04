@@ -198,42 +198,50 @@ export function ReservationCard({ reservation, onCancel, onDelete, onRemoveFromL
                                 <div className="flex flex-wrap gap-2">
 
 
-                                    {reservation.seats.map((seat, idx) => {
-                                        // V7.15 SSOT: 공통 유틸리티로 좌석 라벨 생성
-                                        let seatLabel = "";
+                                    {/* [V8.18] 좌석 정렬: OP → VIP → R → S → A 순서, 같은 등급이면 좌석 번호순 */}
+                                    {(() => {
+                                        const GRADE_ORDER = ['OP', 'VIP', 'R', 'S', 'A'];
+                                        const sortedSeats = [...reservation.seats].sort((a, b) => {
+                                            const orderA = GRADE_ORDER.indexOf(a.grade);
+                                            const orderB = GRADE_ORDER.indexOf(b.grade);
+                                            // 같은 등급이면 seatId 기준 정렬 (번호순)
+                                            if (orderA === orderB) {
+                                                return (a.seatId || '').localeCompare(b.seatId || '');
+                                            }
+                                            return orderA - orderB;
+                                        });
 
-                                        if (seat.seatId) {
-                                            const { floor, sectionId, rowId, localNumber } = parseSeatId(seat.seatId);
+                                        return sortedSeats.map((seat, idx) => {
+                                            // [V8.18 FIX] seatId에서 정보 추출 후 글로벌 번호로 변환
+                                            let seatLabel = "";
 
-                                            // sections 데이터가 있으면 연속 번호 계산
-                                            let displayNumber = localNumber;
-                                            if (reservation.sections && reservation.sections.length > 0) {
-                                                const floorSections = reservation.sections.filter(s => s.floor === floor);
-                                                displayNumber = calculateGlobalSeatNumber(
-                                                    sectionId,
-                                                    rowId,
-                                                    localNumber,
-                                                    floorSections,
-                                                    floor
-                                                );
+                                            if (seat.seatId) {
+                                                const { floor, sectionId, rowId, localNumber } = parseSeatId(seat.seatId);
+
+                                                // [V8.18 FIX] 로컬 번호를 글로벌 번호로 변환 (sections 필요)
+                                                let displayNumber = localNumber;
+                                                if (reservation.sections && reservation.sections.length > 0) {
+                                                    const floorSections = reservation.sections.filter((s: any) => s.floor === floor);
+                                                    displayNumber = calculateGlobalSeatNumber(sectionId, rowId, localNumber, floorSections, floor);
+                                                }
+
+                                                seatLabel = `${floor} ${sectionId}구역 ${rowId}열 ${displayNumber}번`;
                                             }
 
-                                            seatLabel = `${floor} ${sectionId}구역 ${rowId}열 ${displayNumber}번`;
-                                        }
+                                            // Fallback if parsing failed
+                                            if (!seatLabel) {
+                                                seatLabel = seat.seatNumber
+                                                    ? `${seat.seatNumber}번`
+                                                    : (seat.seatId || "좌석 정보 없음");
+                                            }
 
-                                        // Fallback if parsing failed
-                                        if (!seatLabel) {
-                                            seatLabel = seat.seatNumber
-                                                ? `${seat.seatNumber}번`
-                                                : (seat.seatId || "좌석 정보 없음");
-                                        }
-
-                                        return (
-                                            <Badge key={idx} variant="outline" className="bg-gray-50 font-normal">
-                                                {seat.grade}석 {seatLabel}
-                                            </Badge>
-                                        );
-                                    })}
+                                            return (
+                                                <Badge key={idx} variant="outline" className="bg-gray-50 font-normal">
+                                                    {seat.grade}석 {seatLabel}
+                                                </Badge>
+                                            );
+                                        });
+                                    })()}
                                     <span className="text-gray-500 text-xs self-center ml-1">
                                         (총 {reservation.seats.length}매)
                                     </span>

@@ -52,7 +52,18 @@ export function ChatInterface() {
     const [lastActivityTime, setLastActivityTime] = useState(Date.now());
     const [sessionWarningShown, setSessionWarningShown] = useState(false);
     const [sessionExpired, setSessionExpired] = useState(false);
-    const [isSessionWarningMessage, setIsSessionWarningMessage] = useState(false); // 세션 경고 메시지 추가 시 버튼 유지용
+    // [V8.2] 세션 경고를 별도 상태로 분리 (배너 UI)
+    const [sessionWarning, setSessionWarning] = useState<string | null>(null);
+
+    // [V8.0] Session ID - 새로고침마다 새 세션 생성 (localStorage 미사용)
+    const [sessionId, setSessionId] = useState<string>('');
+
+    useEffect(() => {
+        // 새로고침 시 항상 새 세션 ID 생성 (localStorage 미사용)
+        const newId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setSessionId(newId);
+        console.log('[Chat] New session started:', newId);
+    }, []);
 
     // Use the custom hook for actions
     // Cyclic dependency: sendMessage needs to be defined
@@ -63,7 +74,7 @@ export function ChatInterface() {
     // Actually, we can just define sendMessage inside component and pass it.
 
     const sendMessage = async (text: string) => {
-        if (!text.trim() || isLoading || sessionExpired) return;
+        if (!text.trim() || isLoading || sessionExpired || !sessionId) return;
 
         // [V7.11] 세션 타이머 리셋
         resetSessionTimer();
@@ -96,7 +107,7 @@ export function ChatInterface() {
                 content: [{ text: m.content }]
             }));
 
-            const response = await apiClient.chat(apiMessages, modelId, user?.id);
+            const response = await apiClient.chat(apiMessages, modelId, user?.id, sessionId);
 
             if (!response.ok) throw new Error("Failed to send message");
             if (!response.body) throw new Error("No response body");
@@ -127,27 +138,51 @@ export function ChatInterface() {
                 assistantMessage += chunk;
 
                 // Real-time metadata parsing from chunk (detecting the tag end)
-                // This is a naive check; proper streaming parser would be better but regex works for now
                 // We check the WHOLE assistantMessage for the last Action Data block
-                const matches = [...assistantMessage.matchAll(/<!-- ACTION_DATA: ([\s\S]*?) -->/g)];
-                if (matches.length > 0) {
-                    const lastMatch = matches[matches.length - 1];
+
+                // [V8.5] Robust Parsing: Support both HTML comments and explicit tags [[ACTION_DATA]]
+                // We check for the explicit tag first as it's the new standard
+                let actionDataJson = null;
+
+                // Strategy 1: Explicit Tag [[ACTION_DATA]] JSON [[/ACTION_DATA]] or just to end
+                const tagMatches = [...assistantMessage.matchAll(/\[\[ACTION_DATA\]\]([\s\S]*?)(\[\[\/ACTION_DATA\]\]|$)/g)];
+                if (tagMatches.length > 0) {
+                    actionDataJson = tagMatches[tagMatches.length - 1][1];
+                }
+                // Strategy 2: Legacy HTML Comment <!-- ACTION_DATA: ... -->
+                else {
+                    const matches = [...assistantMessage.matchAll(/<!--\s*ACTION_DATA:\s*([\s\S]*?)\s*-->/g)];
+                    if (matches.length > 0) {
+                        actionDataJson = matches[matches.length - 1][1];
+                    }
+                }
+
+                if (actionDataJson) {
                     try {
-                        // [V7.5] Issue 4: Robust Parsing
-                        // Strip markdown code blocks if present (e.g., ```json ... ```)
-                        const rawJson = lastMatch[1]
-                            .replace(/```json/g, '')
-                            .replace(/```/g, '')
-                            .trim();
+                        let rawJson = actionDataJson.trim();
+
+                        // Strip markdown code blocks if present (e.g., ```json ... ```) 
+                        // Often models put ```json inside the comment or wrap the whole comment in ```
+                        // We aggressive strip ```json and ```
+                        rawJson = rawJson.replace(/^```json\s*/, '').replace(/^```\s*/, '').replace(/\s*```$/, '');
+
+                        // Handle case where model puts literal "json" at start without backticks
+                        if (rawJson.startsWith("json")) rawJson = rawJson.substring(4).trim();
 
                         const parsed = JSON.parse(rawJson) as ActionData;
                         currentActionData = parsed;
 
                         // Update global timer if present
                         if (parsed.timer) {
-                            console.log('[Timer] Setting activeTimer from ACTION_DATA:', parsed.timer);
+                            console.log('[Timer] ✅ Setting activeTimer from ACTION_DATA:', parsed.timer);
+                            console.log('[Timer] Current Time:', new Date().toISOString());
+                            console.log('[Timer] Expires At:', parsed.timer.expiresAt);
                             setActiveTimer(parsed.timer);
+                        } else {
+                            console.warn('[Timer] ⚠️ ACTION_DATA found but NO timer field:', parsed);
                         }
+
+
 
                         // Handle Legacy Seat Map Refresh
                         if (parsed.type === 'HOLDING_CREATED' || parsed.type === 'HOLDING_RELEASED' || parsed.releasedHoldings) {
@@ -198,13 +233,34 @@ export function ChatInterface() {
         setMessages([]);
         setInput("");
         setActiveTimer(undefined);
+
+        // [V8.2] 세션 관련 상태 완전 초기화
+        setSessionExpired(false);
+        setSessionWarningShown(false);
+        setSessionWarning(null);
+        setLastActivityTime(Date.now());
+
+        // 새 세션 ID 생성
+        const newId = `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        setSessionId(newId);
+        console.log('[Chat] New session started (reset):', newId);
     };
 
     const getModelName = (id: string) => {
         return getModelById(id).name;
     };
 
-    const handleTimerExpire = () => {
+    const handleTimerExpire = async () => {
+        // [V8.4] Chatbot Timeout Cleanup (Sync with Web)
+        if (activeTimer?.holdingId) {
+            try {
+                console.log('[Timer] Expired, deleting holding:', activeTimer.holdingId);
+                await apiClient.deleteHolding(activeTimer.holdingId);
+            } catch (e) {
+                console.error('[Timer] Failed to delete holding on expire:', e);
+            }
+        }
+
         setActiveTimer(undefined);
         // [V7.11] 타이머 만료 시 모든 메시지의 버튼 제거
         setMessages(prev => prev.map(m => ({ ...m, actions: undefined })));
@@ -233,9 +289,9 @@ export function ChatInterface() {
             let diff = Math.floor((date.getTime() - new Date().getTime()) / 1000);
             if (diff <= 0) return "0:00";
 
-            // [V7.14] 방어 로직: 선점 시간은 최대 60초이므로 이를 초과하면 잘못된 값
-            // 2분(120초) 이상이면 AI가 잘못된 expiresAt을 생성한 것으로 간주
-            if (diff > 120) {
+            // [V7.14] 방어 로직: 선점 시간은 최대 15분(900초)이므로 이를 초과하면 잘못된 값
+            // 15분(900초) 이상이면 AI가 잘못된 expiresAt을 생성한 것으로 간주
+            if (diff > 900) {
                 console.warn('[Timer] expiresAt too far in future, likely AI error:', isoString, 'diff:', diff);
                 diff = 60; // 60초로 강제 설정
             }
@@ -259,39 +315,36 @@ export function ChatInterface() {
         return () => clearInterval(interval);
     }, [activeTimer]);
 
-    // [V7.12] 세션 타임아웃 체크 - 2분 경고, 5분 종료
+    // [V7.12] 세션 타임아웃 체크 - 5분 경고, 10분 종료
     useEffect(() => {
         if (messages.length === 0) return; // 대화 시작 전에는 체크 안 함
 
         const interval = setInterval(() => {
             const elapsed = Date.now() - lastActivityTime;
 
-            // 5분 경과 → 세션 종료
-            if (elapsed >= 5 * 60 * 1000 && !sessionExpired) {
+            // 10분(600초) 경과 → 세션 종료
+            if (elapsed >= 10 * 60 * 1000 && !sessionExpired) {
                 setSessionExpired(true);
                 setMessages(prev => [...prev, {
                     role: "assistant",
-                    content: "⏰ 대화가 종료되었습니다. 다시 대화하시려면 **새로고침** 버튼을 클릭해주세요."
+                    content: "⏰ 10분 동안 대화가 없어 세션이 종료되었습니다. 다시 대화하시려면 **새로고침** 버튼을 클릭해주세요."
                 }]);
             }
-            // 2분 경과 → 경고 (1회만) - 버튼 유지하면서 경고만 추가
-            else if (elapsed >= 2 * 60 * 1000 && !sessionWarningShown && !sessionExpired) {
+            // [V8.2] 5분(300초) 경과 → 경고 (배너 UI로 표시)
+            else if (elapsed >= 5 * 60 * 1000 && !sessionWarningShown && !sessionExpired) {
                 setSessionWarningShown(true);
-                // 마지막 메시지의 버튼을 유지하면서 경고 메시지만 별도 추가
-                setMessages(prev => [...prev, {
-                    role: "assistant",
-                    content: "⏰ 3분간 대화가 없을 경우 상담이 종료됩니다. 계속 대화하시려면 메시지를 입력해주세요."
-                }]);
+                setSessionWarning("⏰ 5분간 대화가 없을 경우 상담이 종료됩니다. 계속 대화하시려면 메시지를 입력해주세요.");
             }
         }, 10000); // 10초마다 체크
 
         return () => clearInterval(interval);
     }, [lastActivityTime, messages.length, sessionWarningShown, sessionExpired]);
 
-    // [V7.11] 새 메시지 입력 시 타이머 리셋
+    // [V8.2] 새 메시지 입력 시 타이머 리셋 + 배너 숨김
     const resetSessionTimer = () => {
         setLastActivityTime(Date.now());
         setSessionWarningShown(false);
+        setSessionWarning(null);
     };
 
 
@@ -355,7 +408,19 @@ export function ChatInterface() {
                 </CardHeader>
 
                 <CardContent className="flex-1 p-0 overflow-hidden relative z-10 flex flex-col bg-white">
-                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar flex flex-col">
+                    {/* [V8.2] 세션 경고 배너 */}
+                    {sessionWarning && (
+                        <div className="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-800 p-3 mx-4 mt-2 text-sm rounded-r flex items-center gap-2">
+                            <span>{sessionWarning}</span>
+                            <button
+                                onClick={() => setSessionWarning(null)}
+                                className="ml-auto text-yellow-600 hover:text-yellow-800 font-bold"
+                            >
+                                ✕
+                            </button>
+                        </div>
+                    )}
+                    <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-6 pb-24 space-y-6 custom-scrollbar flex flex-col">
                         {/* [V7.9] Floating Badge for Runtime Model Info - Bottom Right (Stacked above Region) */}
                         {runtimeModelInfo && (
                             <div className="fixed bottom-14 right-5 z-[9999] animate-in slide-in-from-bottom-5 fade-in duration-500 flex flex-col items-end gap-1">

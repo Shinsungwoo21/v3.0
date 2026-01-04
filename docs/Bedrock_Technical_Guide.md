@@ -1,6 +1,6 @@
 # MegaTicket Chatbot - Bedrock 기술 가이드
 
-> **Version**: V7.14 | **Last Updated**: 2025-12-28  
+> **Version**: V8.3 | **Last Updated**: 2026-01-04  
 > **작성자**: 설혜봄 (MSP-Project-Pilot-Light)
 
 ---
@@ -17,13 +17,14 @@
 8. ⭐ [CloudWatch 모니터링 (EMF)](#8-cloudwatch-모니터링-emf)
 9. ⭐ [인프라 체크리스트](#9-인프라-체크리스트)
 10. [참고 자료](#10-참고-자료)
+11. ⭐ [할루시네이션 방지 및 사용성 개선](#11-할루시네이션-방지-및-사용성-개선-v83)
 
 ### 🏗️ 인프라 관련 섹션 (AWS Best Practice)
 
 | 섹션 | 주요 내용 |
 |------|----------|
 | ⭐ 3. 크로스 리전 추론 | Global/APAC 프로파일, 라우팅 비용 0원 |
-| ⭐ 4. 비용 최적화 전략 | 프롬프트 캐싱 90%, EMF 메트릭, 모델 계층화 |
+| ⭐ 4. 비용 최적화 전략 | **프롬프트 모듈화 75%↓**, 캐싱 90%, EMF 메트릭 |
 | ⭐ 5. 프롬프트 캐싱 | Anthropic Beta 기능, 입력 토큰 90% 절감 |
 | ⭐ 8. CloudWatch 모니터링 | EMF 동작 방식, PutMetricData 대체 |
 | ⭐ 9. 인프라 체크리스트 | IAM 권한, 환경변수, 완료 상태 |
@@ -36,7 +37,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                   MegaTicket Chatbot Architecture (V7.14)                       │
+│                   MegaTicket Chatbot Architecture (V8.1)                        │
 │                   Multi-Region (서울 + 도쿄) with Cross-Region Inference         │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
@@ -105,15 +106,58 @@
 ```
 apps/app/
 ├── app/api/chat/
-│   └── route.ts                 # Chat API 엔드포인트 (스트리밍, Fallback)
+│   └── route.ts                     # Chat API 엔드포인트 (스트리밍, Fallback, EMF 로깅)
+│
 ├── lib/
-│   ├── bedrock.ts               # Bedrock 클라이언트 초기화
-│   ├── bedrock-tools.ts         # 도구 정의 및 실행 (15개 도구)
-│   ├── system-prompt.ts         # 시스템 프롬프트 (V7.11, ~724줄)
+│   ├── bedrock.ts                   # Bedrock 클라이언트 초기화 (BedrockRuntimeClient)
+│   ├── bedrock-tools.ts             # 도구 정의(BEDROCK_TOOLS) 및 실행(executeTool) - 11개 도구
+│   ├── dynamodb.ts                  # DynamoDB 클라이언트 및 테이블명 상수
+│   ├── response-filter.ts           # ACTION_DATA 응답 필터링
+│   ├── utils.ts                     # 공통 유틸리티 함수
+│   │
+│   ├── prompts/                     # ⭐ V8.0 모듈화된 프롬프트 (15개 파일)
+│   │   ├── index.ts                 # 프롬프트 모듈 export
+│   │   ├── base-prompt.ts           # 공통 규칙 (도구 테이블, 포매팅, 캐스팅 조회 규칙)
+│   │   ├── prompt-composer.ts       # 단계별 프롬프트 조립 (BASE + STEP 1개)
+│   │   ├── conversation-state.ts    # 대화 상태 관리 (In-memory, 5분 TTL)
+│   │   ├── step-greeting.ts         # 인사말 (첫 메시지)
+│   │   ├── step-1-performance.ts    # STEP 1: 공연 선택
+│   │   ├── step-2-schedule.ts       # STEP 2: 날짜/시간 선택 (기념일 처리)
+│   │   ├── step-3-headcount.ts      # STEP 3: 인원 확인
+│   │   ├── step-4-grade.ts          # STEP 4: 좌석 등급 선택
+│   │   ├── step-5-seats.ts          # STEP 5: 좌석 추천 (할루시네이션 방지)
+│   │   ├── step-6-confirm.ts        # STEP 6: 선점 확인 (ACTION_DATA 허용)
+│   │   ├── step-7-holding.ts        # STEP 7: 선점 완료 (10분 타이머)
+│   │   ├── step-8-reservation.ts    # STEP 8: 예약 완료
+│   │   ├── step-9-cancel.ts         # STEP 9: 예약 취소/내 예약 조회
+│   │   └── step-info-mode.ts        # INFO_MODE: 정보 모드 (캐스팅/가격/일정 문의)
+│   │
+│   ├── tools/                       # ⭐ V8.4 도구 구현 모듈화
+│   │   ├── get-performance-schedules.ts # 일정 조회
+│   │   ├── get-seat-grades.ts       # 좌석 등급 조회
+│   │   ├── holding-tools.ts         # 선점/취소 (hold_seats, cancel_hold)
+│   │   ├── performance-tools.ts     # 공연 정보 (get_performances 등)
+│   │   ├── seat-tools.ts            # 좌석 추천 (get_available_seats)
+│   │   └── reservation-tools.ts     # 예약 조회 (get_my_reservations)
+│   │
+│   ├── server/                      # 서버 사이드 서비스
+│   │   ├── holding-manager.ts       # 좌석 선점/예약 관리 (DynamoDB CRUD)
+│   │   ├── performance-service.ts   # 공연/공연장/스케줄 조회 (캐싱 포함)
+│   │   └── services/                # 추가 서비스 모듈
+│   │
 │   ├── constants/
-│   │   └── bedrock-config.ts    # 모델 ID, Fallback 설정
-│   └── utils/
-│       └── stream-filter.ts     # 스트림 필터링
+│   │   └── bedrock-config.ts        # 모델 ID, Fallback 설정, 타임아웃
+│   │
+│   ├── utils/
+│   │   ├── stream-filter.ts         # 스트림 필터링 (도구 결과 처리)
+│   │   ├── price-parser.ts          # 가격 문자열 파싱
+│   │   ├── schedule-recommender.ts  # 일정 추천 로직
+│   │   └── seat-recommender.ts      # 좌석 추천 로직 (연석 우선)
+│   │
+│   └── types/
+│       └── venue.ts                 # 공연장/좌석 타입 정의
+│
+└── system-prompt.ts                 # (레거시 백업) 기존 단일 프롬프트 파일
 ```
 
 ### 1.3 데이터 흐름
@@ -323,19 +367,20 @@ inferenceConfig: {
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────┐
-│                         💰 비용 최적화 전략 (4가지)                              │
+│                         💰 비용 최적화 전략 (5가지)                              │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
-│  1️⃣ 프롬프트 캐싱           2️⃣ 모델 계층화          3️⃣ 교차리전 추론          │
-│  ─────────────────         ───────────────         ─────────────────          │
-│  시스템 프롬프트 캐싱       Primary/Secondary      토큰 할당량 분산             │
-│  입력 토큰 비용 90%↓       구분으로 비용 제어      추가 비용 없음               │
+│  ⭐ 1️⃣ 프롬프트 모듈화       2️⃣ 프롬프트 캐싱        3️⃣ 모델 계층화              │
+│  ────────────────         ───────────────         ───────────────          │
+│  단일 724줄 → 15개 파일    시스템 프롬프트 캐싱     Primary/Secondary          │
+│  요청당 ~2,700 토큰       입력 토큰 비용 90%↓     구분으로 비용 제어             │
+│  **75% 비용 절감**                                                              │
 │                                                                                 │
-│                     4️⃣ EMF 메트릭 (CloudWatch)                                  │
-│                     ─────────────────────────                                   │
-│                     PutMetricData API 제거                                      │
-│                     로그 기반 메트릭 추출                                        │
-│                     API 호출 비용 0원                                           │
+│               4️⃣ 교차리전 추론          5️⃣ EMF 메트릭                          │
+│               ───────────────          ───────────────                          │
+│               토큰 할당량 분산           PutMetricData API 제거                │
+│               추가 비용 없음           로그 기반 메트릭 추출                      │
+│                                     API 호출 비용 0원                           │
 │                                                                                 │
 └─────────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -344,29 +389,63 @@ inferenceConfig: {
 
 | 최적화 항목 | 기능 설명 | 적용 기술 | 절감 효과 | 구현 위치 |
 |------------|----------|----------|----------|----------|
+| **⭐ 프롬프트 모듈화** | 단일 724줄 파일 → 15개 파일 분할, 현재 단계만 로드 | BASE + STEP 1개 | **75% 절감** (~15K→3.7K토큰) | `prompts/*.ts` |
 | **프롬프트 캐싱** | 반복되는 시스템 프롬프트를 서버에 캐싱하여 재처리 방지 | `anthropic_beta: prompt-caching-2024-07-31` | 입력 토큰 **~90% 절감** | `route.ts` L95-99 |
 | **모델 계층화** | 고성능 Primary + 저비용 Secondary로 분리, 장애 시 저비용 모델 사용 | Primary(Claude) + Secondary(Nova) | Fallback 시 토큰 비용 절감 | `bedrock-config.ts` |
 | **교차 리전 추론** | 여러 리전에 요청 분산하여 Rate Limit 회피, 추가 비용 없음 | `global.*`, `apac.*` 프로파일 | 라우팅 비용 **0원** | Model ID |
 | **EMF 메트릭** | 로그에 메트릭 임베드, CloudWatch가 자동 추출 (API 호출 불필요) | Embedded Metric Format | API 호출 비용 **0원** | `route.ts` L197-217 |
 | **도구 결과 캐싱** | 정적 데이터(공연 목록 등) 인메모리 캐싱으로 DynamoDB 조회 감소 | 인메모리 캐싱 (7일 TTL) | DB RCU 비용 절감 | `performance-service.ts` |
 
-### 4.3 프롬프트 캐싱 비용 분석
+### 4.3 ⭐ 프롬프트 모듈화 비용 분석 (V8.0+)
 
-#### 시스템 프롬프트 규모
-```
-📁 apps/app/lib/system-prompt.ts
-├── 전체 라인: 724줄
-├── 파일 크기: ~36KB
-└── 예상 토큰: ~9,000 토큰
+#### 동작 원리
+```typescript
+// prompt-composer.ts - 매 요청마다 2개 파일만 조합
+return `
+${BASE_PROMPT}           // ← 항상 포함 (~1,800 토큰)
+== 현재 예매 컨텍스트 ==
+${contextSummary}        // ← 동적 (~100 토큰)
+== 현재 단계 규칙 ==
+${stepPrompt}            // ← 현재 단계 1개만! (~800 토큰 평균)
+`.trim();
 ```
 
-#### 비용 비교 (1,000회 대화 기준, 가정)
+#### 단계별 토큰 추정
+
+| 단계 | 조합 파일 | 토큰 | 입력 비용 (Haiku) |
+|------|----------|------|------------------|
+| GREETING | base + greeting | ~2,350 | $0.00188 |
+| STEP_1 | base + step-1 | ~2,800 | $0.00224 |
+| STEP_5 (최대) | base + step-5 | ~3,300 | $0.00264 |
+| **평균** | - | **~2,700** | **$0.00216** |
+
+#### 기존 단일 파일 vs 모듈화 비교
+
+| 항목 | 기존 (system-prompt.ts) | 모듈화 (15개 파일) | 절감 |
+|------|------------------------|-------------------|------|
+| 요청당 토큰 | ~15,000 | ~2,700 | **82%↓** |
+| 1회 예매 (9턴) | ~135,000 | ~24,300 | **82%↓** |
+| 1회 예매 비용 | ~$0.15 | ~$0.03 | **80%↓** |
+
+#### 월간 비용 추정 (Claude Haiku 4.5)
+
+| 일일 예매 건수 | 기존 비용/월 | 모듈화 비용/월 | 절감액/월 |
+|--------------|------------|--------------|----------|
+| 100건/일 | $450 | $90 | **$360** |
+| 500건/일 | $2,250 | $450 | **$1,800** |
+| 1,000건/일 | $4,500 | $900 | **$3,600** |
+
+> 📌 **핵심**: 15개 파일 전체가 로드되지 않음! 매 요청마다 **BASE + 현재 STEP 1개**만 조합
+
+### 4.4 프롬프트 캐싱 비용 분석
+
+#### 비용 비교 (1,000회 대화 기준)
 
 | 항목 | 캐싱 미적용 | 캐싱 적용 | 절감액 |
 |------|------------|----------|--------|
-| 시스템 프롬프트 토큰 | 9,000 × 1,000 = 9M | 9,000 × 1 = 9K (첫 요청) | - |
-| 캐시 히트 토큰 | - | 0.9M (90% 할인) | - |
-| 입력 토큰 비용 | $9.00 | $0.90 | **$8.10 (90%)** |
+| 시스템 프롬프트 토큰 | 2,700 × 1,000 = 2.7M | 2,700 × 1 = 2.7K | - |
+| 캐시 히트 토큰 | - | 0.27M (90% 할인) | - |
+| 입력 토큰 비용 | $2.16 | $0.22 | **$1.94 (90%)** |
 
 ### 4.4 EMF vs PutMetricData 비용 비교
 
@@ -387,6 +466,18 @@ inferenceConfig: {
 | 3 | EMF 메트릭 적용 | ✅ 완료 | `route.ts` L197-217 |
 | 4 | 인메모리 캐싱 적용 | ✅ 완료 | `performance-service.ts` |
 | 5 | 교차 리전 프로파일 사용 | ✅ 완료 | Model ID |
+
+### 4.6 챗봇 도구 캐싱 적용 현황 (V8.2 기준)
+
+| 도구명 | 데이터 소스 | 캐싱 방식 | 비용 절감 |
+|--------|------------|----------|----------|
+| `get_performances` | `getAllPerformances` | 7일 캐싱 | 99% 절감 |
+| `get_performance_details` | `getPerformance` | 7일 캐싱 | 99% 절감 |
+| `get_performance_schedules` | `getPerformanceSchedules` | 7일 캐싱 | **99% 절감 (V8.2)** |
+| `get_seat_grades` | `getPerformance` | 7일 캐싱 | 99% 절감 |
+| `get_venue_info` | `getVenue` | 7일 캐싱 | 99% 절감 |
+
+> 📌 **효과**: 사용자가 아무리 많이 질문해도, 서버 메모리에 데이터가 있으면 **DB 조회 비용은 0원**입니다.
 
 ---
 
@@ -631,25 +722,32 @@ for await (const event of response.stream) {
 └─────────────────────────────────────────────────────────────────────────┘
 ```
 
-### 7.4 등록된 도구 목록 (15개)
+### 7.4 챗봇 vs 웹 역할 분리 (V8.4)
+
+| 기능 | 담당 | 이유 |
+|---|---|---|
+| 공연/일정/좌석 조회 | **챗봇** | 대화형 안내 |
+| 좌석 선점 (hold) | **챗봇** | 가예약 단계까지 지원 |
+| 선점 취소 (cancel_hold) | **챗봇** | 선점 상태 해제 지원 |
+| 내 예약 조회 | **챗봇** | 단순 조회 (Read-only) |
+| **결제 및 예약 확정** | **웹** | PG 연동, 보안, 복잡한 UI 처리 |
+| **예약 취소** | **웹** | 환불 규정 안내 및 처리 |
+
+### 7.5 등록된 도구 목록 (7개)
+
+> **Confirm/Cancel 제거됨**: 결제/취소는 웹페이지로 위임되어 `confirm_reservation`, `cancel_reservation` 도구는 제거되었습니다.
 
 | # | 도구명 | 용도 | 캐싱 |
 |---|--------|------|------|
-| 1 | `get_performances` | 공연 목록 | ✅ |
-| 2 | `get_performance` | 공연 상세 | ✅ |
-| 3 | `get_venue_info` | 공연장 정보 | ✅ |
-| 4 | `get_schedules` | 일정 목록 | ✅ |
+| 1 | `get_my_reservations` | 내 예약 조회 (Read only) | ❌ 실시간 |
+| 2 | `get_performances` | 공연 목록 | ✅ |
+| 3 | `get_performance_details` | 공연 상세 + **cast** | ✅ |
+| 4 | `get_performances_schedules` | 일정 목록 + **casting** | ✅ |
 | 5 | `get_seat_grades` | 등급/가격 | ✅ |
-| 6 | `get_available_seats` | 잔여 좌석 | ❌ 실시간 |
-| 7 | `hold_seats` | 좌석 선점 | ❌ 실시간 |
-| 8 | `release_hold` | 선점 해제 | ❌ 실시간 |
-| 9 | `confirm_reservation` | 예약 확정 | ❌ 실시간 |
-| 10 | `cancel_reservation` | 예약 취소 | ❌ 실시간 |
-| 11 | `get_user_reservations` | 예약 조회 | ❌ 실시간 |
-| 12 | `get_holding_status` | 선점 상태 | ❌ 실시간 |
-| 13 | `search_performances` | 공연 검색 | ✅ |
-| 14 | `get_current_time` | 현재 시간 | ❌ |
-| 15 | `faq_guide` | FAQ 안내 | ✅ |
+| 6 | `get_venue_info` | 공연장 정보 | ✅ |
+| 7 | `get_available_seats` | 잔여 좌석 | ❌ 실시간 |
+| 8 | `hold_seats` | 좌석 선점 (10분) | ❌ 실시간 |
+| 9 | `cancel_hold` | 선점 해제 (즉시) | ❌ 실시간 |
 
 ---
 
@@ -725,9 +823,13 @@ for await (const event of response.stream) {
 | `Latency` | Milliseconds | Bedrock 호출 지연 | Model, IsFallback |
 | `InputTokens` | Count | 입력 토큰 수 | Model, IsFallback |
 | `OutputTokens` | Count | 출력 토큰 수 | Model, IsFallback |
-| `FallbackCount` | Count | Fallback 발생 | Reason |
+| `TotalTokens` | Count | 총 토큰 수 (Input + Output) | Model, IsFallback |
+| `FallbackCount` | Count | Fallback 발생 횟수 | Reason |
+| `ToolCallCount` | Count | 도구 호출 횟수 | ToolName |
 
-### 8.3 EMF 로그 구조
+> 📌 **프롬프트 캐싱 효과 모니터링**: 캐시 히트 시 입력 토큰 비용이 90% 감소하므로 `InputTokens` 감소 추이를 확인
+
+### 8.5 EMF 로그 구조
 
 ```json
 {
@@ -912,6 +1014,33 @@ environment:
 
 ---
 
+---
+
+## 11. ⭐ 할루시네이션 방지 및 사용성 개선 (V8.3)
+
+### 11.1 좌석/가격 정보 왜곡 방지
+- **문제**: AI가 임의로 좌석 번호("7열 15번")나 가격을 생성하여 제공.
+- **해결**:
+  - `step-5-seats.ts`: 도구 결과(`recommendedOptions`) 이외의 정보 언급 시 **서비스 장애**로 간주하는 강력한 프롬프트 적용.
+  - **Confirm 단계(STEP 6) 추가**: 사용자가 좌석 번호만 말했을 때 즉시 예약을 진행하지 않고, "이 좌석으로 하시겠습니까?"라고 되묻는 안전장치 마련.
+
+### 11.2 시간대(Timezone) 혼란 방지
+- **문제**: 서버의 UTC 시간(`expiresAt`)을 AI가 그대로 읽어 "07:00까지 예약하세요"라고 잘못 안내(한국 시간은 16:00).
+- **해결**:
+  - **Server-Side Formatting**: `holding-manager.ts`에서 KST(한국 시간)로 포맷팅된 `expiresAtText` 필드("16:00")를 반환.
+  - **Prompt Enforcement**: AI에게 UTC 시간 계산을 금지하고, 서버가 제공한 텍스트 필드만 사용하도록 강제.
+
+### 11.3 챗봇 DR(재해 복구) 안내 전략
+- **시나리오**: 메인 리전(Seoul) 장애로 예약을 완료하지 못한 경우.
+- **동작**:
+  1. `get_user_reservations` 도구가 `dr_recovered` 상태의 예약을 반환.
+  2. `base-prompt.ts`에 정의된 규칙에 따라 AI가 다음 안내 메시지 출력:
+     - "⚠️ **[장애 복구]** 선점된 좌석이 임시 보호 중입니다!"
+     - "👉 **[내 예약]** 메뉴에서 결제를 완료해주세요!"
+  3. 챗봇 내 직접 처리 대신 웹의 안전한 결제 페이지로 유도하여 데이터 정합성 유지.
+
+---
+
 ## 10. 참고 자료
 
 ### AWS 공식 문서
@@ -933,9 +1062,13 @@ environment:
 
 | 날짜 | 버전 | 내용 |
 |------|------|------|
+| 2026-01-04 | **V8.4** | 예약 진행 단계별 버튼 UX 최적화 (선점/확정/보기), 좌석 추천 포맷 개선 (Full ID) |
+| 2026-01-04 | **V8.3** | 할루시네이션 방지, KST 시간 처리, DR 안내 추가 및 **좌석 ID/가격 누락 방어 로직 구현** |
+| 2026-01-04 | V8.1 | 캐스팅 필드(cast/casting) 도구 반환값 추가, 프롬프트 모듈화 비용 분석 상세화 |
+| 2026-01-03 | V8.0 | 프롬프트 모듈화 (1개→15개 파일), 75% 토큰 절감 |
 | 2025-12-28 | V7.14 | 비용 최적화 섹션 추가, 교차리전 상세화, 체크리스트 추가 |
 
 ---
 
-**Last Updated**: 2025-12-28  
+**Last Updated**: 2026-01-04  
 **Maintainer**: 설혜봄 (MSP-Project-Pilot-Light)

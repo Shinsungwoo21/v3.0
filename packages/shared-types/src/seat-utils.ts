@@ -135,3 +135,103 @@ export function formatSeatLabel(
 
     return `${floor} ${sectionId}구역 ${rowId}열 ${displayNumber}번 (${grade}석)`;
 }
+
+/**
+ * [V8.18] 글로벌 좌석 번호를 로컬 좌석 번호로 역변환
+ * 
+ * AI가 label의 글로벌 번호(예: 18번)를 seatId에 잘못 넣었을 때,
+ * 올바른 로컬 번호(예: 6번)로 변환하기 위함
+ * 
+ * @param sectionId - 구역 ID (A, B, C, D, E, F)
+ * @param rowId - 열 ID (OP, 1, 2, 3, ...)
+ * @param globalNumber - 글로벌 좌석 번호 (연속 번호)
+ * @param sections - 해당 층의 섹션 데이터 배열
+ * @param floor - 층 정보 (1층, 2층)
+ * @returns 로컬 좌석 번호 (구역 내 1부터 시작하는 번호)
+ */
+export function calculateLocalSeatNumber(
+    sectionId: string,
+    rowId: string,
+    globalNumber: number,
+    sections: SectionData[],
+    floor: string
+): number {
+    // OP열은 글로벌 = 로컬
+    if (rowId === 'OP') {
+        return globalNumber;
+    }
+
+    // 해당 층의 섹션만 필터링
+    const floorSections = sections.filter(s => s.floor === floor);
+
+    // 나머지 열은 A -> B -> C 순서로 연속
+    const sectionOrder = ['A', 'B', 'C', 'D', 'E', 'F'];
+    const currentSectionIndex = sectionOrder.indexOf(sectionId);
+
+    let offset = 0;
+    for (let i = 0; i < currentSectionIndex; i++) {
+        const section = floorSections.find(s => s.sectionId === sectionOrder[i]);
+        if (section) {
+            const row = section.rows.find(r => r.rowId === rowId);
+            if (row) {
+                const seatCount = row.seats?.length || row.length || 0;
+                offset += seatCount;
+            }
+        }
+    }
+
+    return globalNumber - offset;
+}
+
+/**
+ * [V8.18] seatId의 좌석 번호가 유효한지 확인하고, 필요시 변환
+ * 
+ * @param seatId - 좌석 ID (형식: "1층-B-1-18")
+ * @param sections - 섹션 데이터 (변환 필요 여부 판단용)
+ * @returns { needsConversion, correctedSeatId, originalNumber, correctedNumber }
+ */
+export function validateAndCorrectSeatId(
+    seatId: string,
+    sections: SectionData[]
+): {
+    needsConversion: boolean;
+    correctedSeatId: string;
+    originalNumber: number;
+    correctedNumber: number;
+} {
+    const { floor, sectionId, rowId, localNumber } = parseSeatId(seatId);
+
+    // 해당 구역/열의 최대 좌석 수 확인
+    const floorSections = sections.filter(s => s.floor === floor);
+    const section = floorSections.find(s => s.sectionId === sectionId);
+    const row = section?.rows.find(r => r.rowId === rowId);
+    const maxSeats = row?.seats?.length || row?.length || 15;
+
+    // localNumber가 해당 열의 좌석 수를 초과하면 글로벌 번호로 간주
+    if (localNumber > maxSeats) {
+        // 글로벌 번호를 로컬 번호로 변환
+        const correctedNumber = calculateLocalSeatNumber(
+            sectionId,
+            rowId,
+            localNumber,
+            sections,
+            floor
+        );
+
+        const correctedSeatId = `${floor}-${sectionId}-${rowId}-${correctedNumber}`;
+
+        return {
+            needsConversion: true,
+            correctedSeatId,
+            originalNumber: localNumber,
+            correctedNumber
+        };
+    }
+
+    return {
+        needsConversion: false,
+        correctedSeatId: seatId,
+        originalNumber: localNumber,
+        correctedNumber: localNumber
+    };
+}

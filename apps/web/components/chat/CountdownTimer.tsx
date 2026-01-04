@@ -54,18 +54,7 @@ export const CountdownTimer: React.FC<CountdownTimerProps> = ({ timer, onExpire 
 
     const isUrgent = timeLeft <= (timer.warningThreshold || 30);
 
-    return (
-        <div className={`
-            flex items-center gap-2 mt-2 text-sm font-medium px-3 py-2 rounded-lg border
-            transition-colors duration-300
-            ${isUrgent
-                ? 'text-red-600 bg-red-50 border-red-100 animate-pulse'
-                : 'text-blue-600 bg-blue-50 border-blue-100'}
-        `}>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <span>{timer.message}: {timeLeft}초</span>
-        </div>
-    );
+    // [V8.6] 버튼 영역의 타이머 텍스트는 표시하지 않음 (헤더에만 표시)
+    // 단, 만료 시에는 표시
+    return null;
 };

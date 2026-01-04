@@ -1,0 +1,20 @@
+[
+    {
+        "Create": {
+            "IndexName": "performanceId-index",
+            "KeySchema": [
+                {
+                    "AttributeName": "performanceId",
+                    "KeyType": "HASH"
+                },
+                {
+                    "AttributeName": "date",
+                    "KeyType": "RANGE"
+                }
+            ],
+            "Projection": {
+                "ProjectionType": "ALL"
+            }
+        }
+    }
+]

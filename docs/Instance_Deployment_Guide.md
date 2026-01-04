@@ -135,8 +135,8 @@ pm2 start npm --name "app-backend" -- start
 pm2 save
 pm2 startup
 # (주의: 출력된 sudo env 명령어를 복사할 때, 끝부분 '--hp'와 '/home' 사이에 띄어쓰기가 있는지 꼭 확인하세요!)
-# 예: ... --hp /home/ssm-user (O)
-# 예: ... --hp/home/ssm-user (X -> 에러남)
+# 예: ... --hp /home/ec2-user (O)
+# 예: ... --hp/home/ec2-user (X -> 에러남)
 ```
 
 ---

@@ -1,11 +1,14 @@
 export const BEDROCK_MODELS = {
     PRIMARY: {
+        // Claude Haiku 4.5 - Cross-Region Inference (global prefix)
+        // [V8.2] supportsPromptCaching: false - Cross-Region에서 prompt-caching이 ValidationException 유발 가능
         id: 'global.anthropic.claude-haiku-4-5-20251001-v1:0',
-        supportsPromptCaching: true,
+        supportsPromptCaching: false, // [V8.2] Cross-Region Inference 호환성 문제 해결
     },
     SECONDARY: {
+        // Amazon Nova Lite - [V8.2] 프롬프트 캐싱 지원 활성화
         id: 'apac.amazon.nova-lite-v1:0',
-        supportsPromptCaching: false,
+        supportsPromptCaching: true,
     },
 };
 

@@ -518,14 +518,22 @@ STEP 6~7에서 사용자가 좌석 선점 동의 시:
       - ✅ 끝에 "어느 좌석이 마음에 드세요? (번호로 말씀해주세요!)" 추가
     
     STEP 6 (사용자 선택 확인):
-      - 사용자가 "1번", "2번", "3번", "추천 1번" 등으로 선택하면
-      - ✅ 선택한 좌석 정보 요약
-      - ✅ ACTION_DATA 포함하여 버튼 표시:
-        <!-- ACTION_DATA: {"actions": [
-          {"id": "hold", "label": "좌석 선점", "type": "message", "text": "네, 선점해주세요", "style": "primary"},
-          {"id": "other", "label": "다른 좌석 보기", "type": "message", "text": "다른 좌석 보여줘", "style": "secondary"},
-          {"id": "cancel", "label": "취소", "type": "message", "text": "취소할래", "style": "danger"}
-        ]} -->
+      - 사용자가 "1번", "2번", "추천 1번" 등으로 좌석을 선택하면:
+      - 🚨 **CONFIRMATION FIRST**: 즉시 선점하지 말고, **반드시** 확인 질문을 먼저 하세요.
+      - "1층 B구역 VIP석 1열 18~20번 3석을 선점하시겠습니까?" 와 같이 되물어보세요.
+      - **ACTION_DATA 없음**: 이 단계에서는 버튼을 표시하지 않습니다.
+      
+    STEP 6.5 (선점 진행):
+      - 사용자가 "네", "선점해줘", "응" 등으로 동의하면:
+      - 1️⃣ **가용성 재확인**: `hold_seats` 호출 전 내부적으로 가용성을 고려한다고 가정합니다.
+      - 2️⃣ **도구 호출**: `hold_seats` 도구를 호출하세요.
+      - 3️⃣ **결과 표시**: 도구 결과에 따라 타이머와 버튼을 표시하세요.
+      
+    ✅ 올바른 흐름:
+      User: "1번"
+      Bot: "1층 B구역 VIP석 ... 선점하시겠습니까?" (확인 질문)
+      User: "네"
+      Bot: (Calls `hold_seats`) -> (Returns result with Timer)
 
 25. [V7.11] ERROR HANDLING 에러 처리 규칙
 
@@ -736,24 +744,29 @@ Template:
 
 3️⃣ 📍 [recommendedOptions[2] 데이터 그대로]
    └ [description 필드 그대로]
-
 어느 좌석이 마음에 드세요? (번호로 말씀해주세요!)
 
 💡 다른 좌석 원하시면 말씀해주세요!"
 
-STEP 6: Seat Detail Confirmation
-Template:
-"선택하신 좌석 정보입니다:
-📍 [N인의 경우 모든 좌석 정보 나열]
-이 좌석을 선점하시겠습니까?"
-Buttons: [좌석 선점]
+STEP 6: Seat Selection & Confirmation (Safety Check)
+    - When user selects a seat (e.g., "1번", "첫번째거"):
+    - 🚨 **STOP**: Do NOT call `hold_seats` yet.
+    - ✅ **ASK**: "📍 [선택한 좌석 정보] 좌석을 선점하시겠습니까?"
+    - ❌ NO BUTTONS at this stage.
 
-⚠️ STEP 6 → STEP 7 TRANSITION RULE (NO DUPLICATE QUESTIONS)
-- When user confirms ("응", "네", "예", "좋아", "그래", "확인", "선점해줘"):
-  → Call hold_seats IMMEDIATELY
-  → Go to STEP 7
-- ❌ DO NOT ask "선점하시겠습니까?" again after user says "응"
-- ❌ DO NOT show seat info twice before holding
+STEP 6.5: Execute Holding (After Confirmation)
+    - When user says "네", "응", "선점해줘" (Confirmation):
+    - 1. Check availability (implicitly via tool or internal logic).
+    - 2. Call `hold_seats` tool **IMMEDIATELY**.
+    - 3. If tool fails (already taken), apologize and offer other seats.
+    
+    STEP 6 → STEP 7 TRANSITION:
+      User: "1번"
+      Bot: "B구역 ... 선점하시겠습니까?"
+      User: "네"
+      Bot: Calls `hold_seats` -> Shows Timer
+
+
 
 STEP 7: Holding Seats & Timer
 Tool: hold_seats

@@ -58,7 +58,14 @@ export default function BookingPage() {
     // 선택된 날짜의 회차 정보
     const selectedSchedule = useMemo(() => {
         if (!performance?.schedules) return undefined
-        return performance.schedules.find((s: PerformanceSchedule) => s.date === selectedDate)
+        const schedule = performance.schedules.find((s: PerformanceSchedule) => s.date === selectedDate)
+
+        // [V8.2] 시간순 정렬 추가 (14:00 -> 19:00)
+        if (schedule && schedule.times) {
+            const sortedTimes = [...schedule.times].sort((a: any, b: any) => a.time.localeCompare(b.time));
+            return { ...schedule, times: sortedTimes };
+        }
+        return schedule;
     }, [performance, selectedDate])
 
     // 달력 생성
@@ -243,7 +250,9 @@ export default function BookingPage() {
                                                 slot.status === "few" ? 'text-orange-500' : 'text-green-600'}
                                         `}>
                                             {slot.status === "soldout" ? "매진" :
-                                                slot.status === "few" ? `잔여 ${slot.availableSeats}석` : `${slot.availableSeats}석`}
+                                                // [V8.2] 실시간 데이터 아님 -> 숫자 숨김
+                                                "예매 가능"}
+                                            {/* slot.status === "few" ? `잔여 ${slot.availableSeats}석` : `${slot.availableSeats}석` */}
                                         </span>
                                     </button>
                                 ))}

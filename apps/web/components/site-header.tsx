@@ -1,6 +1,7 @@
 "use client"
 
 import Link from "next/link"
+import { Suspense } from "react"
 
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,7 @@ import { useEffect, useState } from "react"
 import { useAuth } from "@/contexts/auth-context"
 import { useSearchParams } from "next/navigation"  // V7.18: URL 쿼리에서 region 가져오기
 
-export function SiteHeader() {
+function SiteHeaderContent() {
 
     const [isScrolled, setIsScrolled] = useState(false)
     const [hasRecoveredReservation, setHasRecoveredReservation] = useState(false)  // V7.16: 복구 예약 여부
@@ -154,5 +155,14 @@ export function SiteHeader() {
                 </div>
             </div>
         </header >
+    )
+}
+
+// [V8.0] Suspense 래퍼 - Next.js 15 useSearchParams 호환
+export function SiteHeader() {
+    return (
+        <Suspense fallback={<header className="sticky top-0 z-50 w-full h-16 bg-white/80 backdrop-blur-md border-b" />}>
+            <SiteHeaderContent />
+        </Suspense>
     )
 }

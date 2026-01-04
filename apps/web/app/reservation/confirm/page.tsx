@@ -11,6 +11,18 @@ import { apiClient } from "@/lib/api-client"
 import { cn } from "@/lib/utils"
 import { parseSeatId, calculateGlobalSeatNumber } from "@mega-ticket/shared-types"
 
+// [V8.17 FIX] 등급별 색상 매핑 - DB seatColors와 일치
+const GRADE_COLORS: Record<string, string> = {
+    'OP': '#9E37D1',   // 보라색 (오케스트라 피트)
+    'VIP': '#FF0000',  // 빨간색
+    'R': '#FFA500',    // 주황색
+    'S': '#1E90FF',    // 파란색
+    'A': '#32CD32',    // 초록색
+};
+
+// [V8.17] 등급 정렬 순서
+const GRADE_ORDER = ['OP', 'VIP', 'R', 'S', 'A'];
+
 function ReservationConfirmContent() {
     const router = useRouter()
     const searchParams = useSearchParams()
@@ -49,35 +61,92 @@ function ReservationConfirmContent() {
 
     // 1. Initial Load & Session Check
     useEffect(() => {
-        const data = reservationStore.getSession()
+        const loadSession = async () => {
+            let data: ReservationSession | null = null;
 
-        // If data is missing OR holdingId is missing, invalid access
-        if (!data || !holdingId) {
-            alert("잘못된 접근입니다. 다시 시도해주세요.")
-            router.push("/")
-            return
-        }
-        setSession(data)
+            // [V8.10 FIX] holdingId가 있으면 무조건 서버에서 먼저 조회!
+            // sessionStorage 데이터는 SeatMap에서 저장된 것이므로 챗봇 선점과 충돌할 수 있음
+            if (holdingId) {
+                try {
+                    console.log('[ReservationConfirm] Fetching holding from server:', holdingId);
+                    const res = await fetch(`/api/holdings/${holdingId}`);
+                    if (res.ok) {
+                        const holdingData = await res.json();
 
-        // Initialize timer based on server's remainingSeconds (preferred) or expiresAt (fallback)
-        if (remainingSecondsParam) {
-            // 서버에서 전달받은 정확한 남은 시간 사용
-            const serverRemainingSeconds = parseInt(remainingSecondsParam, 10)
-            if (!isNaN(serverRemainingSeconds) && serverRemainingSeconds > 0) {
-                setTimeLeft(serverRemainingSeconds)
+                        // Sections 정보 가져오기 (좌석 번호 계산용)
+                        let sections = [];
+                        try {
+                            const perfRes = await fetch(`/api/performances/${holdingData.performanceId}`);
+                            if (perfRes.ok) {
+                                const perfData = await perfRes.json();
+                                sections = perfData.sections || [];
+                            }
+                        } catch (e) { console.error("Failed to fetch sections", e); }
+
+                        // [V8.13 FIX] totalPrice 계산 (서버에서 안 주면 클라이언트에서 계산)
+                        const calculatedTotalPrice = holdingData.totalPrice ??
+                            (holdingData.seats?.reduce((sum: number, s: any) => sum + (s.price || 0), 0) || 0);
+
+                        data = {
+                            performanceId: holdingData.performanceId,
+                            performanceTitle: holdingData.performanceTitle || '공연 정보 로딩 중...',
+                            venue: holdingData.venue || '',
+                            date: holdingData.date,
+                            time: holdingData.time,
+                            seats: holdingData.seats,
+                            totalPrice: calculatedTotalPrice,
+                            sections: sections
+                        };
+
+                        console.log('[ReservationConfirm] Loaded from server:', {
+                            holdingId,
+                            performanceTitle: data.performanceTitle,
+                            venue: data.venue,
+                            totalPrice: data.totalPrice,
+                            seatCount: data.seats.length,
+                            seatIds: data.seats.map((s: any) => s.seatId)
+                        });
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch holding from server", e);
+                }
+            }
+
+            // [V8.10] 서버 조회 실패 시에만 sessionStorage fallback
+            if (!data) {
+                data = reservationStore.getSession();
+                if (data) {
+                    console.log('[ReservationConfirm] Fallback to sessionStorage:', {
+                        seatCount: data.seats.length,
+                        seatIds: data.seats.map((s: any) => s.seatId)
+                    });
+                }
+            }
+
+            // If data is still missing OR holdingId is missing, invalid access
+            if (!data || !holdingId) {
+                alert("잘못된 접근입니다. 다시 시도해주세요.")
+                router.push("/")
                 return
             }
-        }
+            setSession(data)
+        };
 
-        // Fallback: expiresAt 기반 계산 (서버-클라이언트 시간 차이 있을 수 있음)
+        loadSession();
+
+        // V8.9: expiresAt 기반으로만 타이머 계산 (동일 - 변경 없음)
         if (expiresAt) {
             const expireDate = new Date(expiresAt)
             const now = new Date()
             const diffSeconds = Math.floor((expireDate.getTime() - now.getTime()) / 1000)
 
             if (!isNaN(diffSeconds)) {
-                // 최대 60초로 제한하여 시간 차이 문제 완화
-                setTimeLeft(Math.min(diffSeconds > 0 ? diffSeconds : 0, 60))
+                setTimeLeft(Math.max(diffSeconds, 0))
+            }
+        } else if (remainingSecondsParam) {
+            const serverRemainingSeconds = parseInt(remainingSecondsParam, 10)
+            if (!isNaN(serverRemainingSeconds) && serverRemainingSeconds > 0) {
+                setTimeLeft(serverRemainingSeconds)
             }
         }
     }, [router, holdingId, expiresAt, remainingSecondsParam])
@@ -114,7 +183,7 @@ function ReservationConfirmContent() {
             await apiClient.createReservation({
                 holdingId: holdingId!,
                 performanceTitle: session.performanceTitle,
-                venue: "Charlotte Theater"
+                venue: session.venue || "샤롯데씨어터"
             });
 
             isConfirmedRef.current = true
@@ -192,7 +261,7 @@ function ReservationConfirmContent() {
                         </div>
                     </div>
 
-                    <CardTitle className="text-lg text-primary text-center pt-1">{session.performanceTitle}</CardTitle>
+                    <CardTitle className="text-lg text-primary text-center pt-1">{session.performanceTitle || '공연 정보 로딩 중...'}</CardTitle>
                     <CardDescription className="text-center mt-1 text-xs">
                         남은 시간 내에 결제를 완료해주세요.
                     </CardDescription>
@@ -212,7 +281,7 @@ function ReservationConfirmContent() {
                         <div className="flex items-center gap-2 col-span-2">
                             <MapPin className="w-3.5 h-3.5 text-gray-500" />
                             <span className="font-medium text-gray-700">장소</span>
-                            <span>{session.venue}</span>
+                            <span>{session.venue || '샤롯데씨어터'}</span>
                         </div>
                     </div>
 
@@ -222,25 +291,32 @@ function ReservationConfirmContent() {
                         </h3>
                         {/* V7.13: 리스트 간격 조절 (space-y-1.5 -> space-y-0.5, p-3 -> p-2) */}
                         <div className="bg-gray-50 p-2 rounded-xl space-y-0.5 border border-gray-100 max-h-[200px] overflow-y-auto custom-scrollbar">
-                            {session.seats.map(seat => {
-                                // V7.15 SSOT: 공통 유틸리티로 좌석 라벨 생성
+                            {/* [V8.17 FIX] 좌석 정렬: OP → VIP → R → S → A 순서 */}
+                            {[...session.seats].sort((a, b) => {
+                                const orderA = GRADE_ORDER.indexOf(a.grade);
+                                const orderB = GRADE_ORDER.indexOf(b.grade);
+                                // 같은 등급이면 좌석 번호순
+                                if (orderA === orderB) {
+                                    return (a.seatId || '').localeCompare(b.seatId || '');
+                                }
+                                return orderA - orderB;
+                            }).map(seat => {
+                                // [V8.17 FIX] seatId에서 직접 정보 추출
+                                // seatId 형식: "1층-B-1-6" (마지막 숫자는 로컬 번호)
                                 const { floor, sectionId, rowId, localNumber } = parseSeatId(seat.seatId);
 
-                                // sections 데이터가 있으면 연속 번호 계산
+                                // [V8.18 FIX] 로컬 번호를 글로벌 번호로 변환 (sections 필요)
+                                // sections가 있으면 변환, 없으면 로컬 번호 그대로 사용
                                 let displayNumber = localNumber;
-                                if ((session as any).sections && (session as any).sections.length > 0) {
-                                    const floorSections = (session as any).sections.filter((s: any) => s.floor === floor);
-                                    displayNumber = calculateGlobalSeatNumber(
-                                        sectionId,
-                                        rowId,
-                                        localNumber,
-                                        floorSections,
-                                        floor
-                                    );
+                                if (session.sections && session.sections.length > 0) {
+                                    const floorSections = session.sections.filter((s: any) => s.floor === floor);
+                                    displayNumber = calculateGlobalSeatNumber(sectionId, rowId, localNumber, floorSections, floor);
                                 }
 
                                 const displayText = `${floor} ${sectionId}구역 ${rowId}열 ${displayNumber}번 (${seat.grade}석)`;
-                                const gradeColor = (seat as any).color || '#333333';
+                                // [V8.13 FIX] 등급별 색상 - API 응답 우선, 없으면 fallback
+                                const gradeColor = (seat as any).color || GRADE_COLORS[seat.grade] || '#333333';
+
                                 return (
                                     // V7.13: 아이템 간격 조절 (p-2 -> py-0.5 px-2)
                                     <div key={seat.seatId} className="flex justify-between items-center text-sm py-0.5 px-2 hover:bg-slate-50 rounded transition-colors border border-transparent hover:border-gray-100">
@@ -258,7 +334,7 @@ function ReservationConfirmContent() {
                             <Separator className="my-2 opacity-50" />
                             <div className="flex justify-between items-center text-lg font-bold px-1">
                                 <span>총 결제 금액</span>
-                                <span className="text-primary">{session.totalPrice.toLocaleString()}원</span>
+                                <span className="text-primary">{(session.totalPrice ?? 0).toLocaleString()}원</span>
                             </div>
                         </div>
                     </div>

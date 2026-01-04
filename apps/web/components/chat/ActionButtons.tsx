@@ -10,7 +10,7 @@ interface ActionButtonsProps {
 // 버튼 라벨에 따라 아이콘 반환
 const getButtonIcon = (label: string) => {
     if (label.includes('정보')) return <Info className="h-4 w-4" />;
-    if (label.includes('예매') || label.includes('예약')) return <Ticket className="h-4 w-4" />;
+    if (label.includes('예매') || label.includes('예약') || label.includes('결제')) return <Ticket className="h-4 w-4" />;
     if (label.includes('확정') || label.includes('선점')) return <CheckCircle2 className="h-4 w-4" />;
     if (label.includes('취소')) return <XCircle className="h-4 w-4" />;
     if (label.includes('보기')) return <Sparkles className="h-4 w-4" />;
@@ -26,7 +26,7 @@ export const ActionButtons: React.FC<ActionButtonsProps> = ({ actions, onAction 
             {actions.map((action, index) => {
                 const label = action.label || action.text || action.id || '버튼';
                 const icon = getButtonIcon(label);
-                const isPrimary = action.style === 'primary' || label.includes('예매') || label.includes('확정') || label.includes('선점');
+                const isPrimary = action.style === 'primary' || label.includes('예매') || label.includes('확정') || label.includes('선점') || label.includes('결제');
                 const isDanger = action.style === 'danger' || label.includes('취소');
 
                 return (

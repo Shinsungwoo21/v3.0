@@ -273,24 +273,77 @@ export async function getAllPerformances(): Promise<Performance[]> {
 
 /**
  * 공연 스케줄 목록 조회
+ * [V8.4] DB 레벨 날짜 필터링 추가 (fromDate)
  */
-export async function getPerformanceSchedules(performanceId: string): Promise<Schedule[]> {
-    const cacheKey = `v81:schedules:${performanceId}`;
+export async function getPerformanceSchedules(performanceId: string, fromDate?: string): Promise<Schedule[]> {
+    const cacheKey = `v84:schedules:${performanceId}:${fromDate || 'all'}`;
     const cached = performanceCache.get<Schedule[]>(cacheKey);
     if (cached) return cached;
 
     try {
-        const result = await dynamoDb.send(new QueryCommand({
-            TableName: SCHEDULES_TABLE,
-            IndexName: "performanceId-index",
-            KeyConditionExpression: "performanceId = :pid",
-            ExpressionAttributeValues: { ":pid": performanceId }
-        }));
+        let resultItems: any[] = [];
+        let usedDbFiltering = false;
 
-        if (!result.Items || result.Items.length === 0) return [];
+        // 1. Try DB-level filtering (Optimized)
+        if (fromDate) {
+            try {
+                const result = await dynamoDb.send(new QueryCommand({
+                    TableName: SCHEDULES_TABLE,
+                    IndexName: "performanceId-index",
+                    KeyConditionExpression: "performanceId = :pid AND #d >= :fd",
+                    ExpressionAttributeNames: { "#d": "date" },
+                    ExpressionAttributeValues: {
+                        ":pid": performanceId,
+                        ":fd": fromDate
+                    }
+                }));
+                resultItems = result.Items || [];
+                usedDbFiltering = true;
+            } catch (e: any) {
+                // [V8.4] Index not ready (CREATING/DELETING) or not supported -> Fallback
+                if (e.name === 'ValidationException' || e.name === 'ResourceNotFoundException') {
+                    console.warn(`[PerformanceService] DB filtering failed (${e.name}). Falling back to in-memory filtering.`);
+                } else {
+                    console.error("[PerformanceService] Unexpected Query Error:", e);
+                }
+            }
+        }
+
+        // 2. Fallback: Full Query + Memory Filtering
+        if (!usedDbFiltering) {
+            try {
+                const result = await dynamoDb.send(new QueryCommand({
+                    TableName: SCHEDULES_TABLE,
+                    IndexName: "performanceId-index",
+                    KeyConditionExpression: "performanceId = :pid",
+                    ExpressionAttributeValues: { ":pid": performanceId }
+                }));
+                resultItems = result.Items || [];
+            } catch (err: any) {
+                // [V8.4] CRITICAL FIX: If GSI is missing (during recreation), use SCAN.
+                if (err.name === 'ResourceNotFoundException') {
+                    console.warn("[PerformanceService] GSI missing, performing SCAN (Last Resort).");
+                    const scanResult = await dynamoDb.send(new ScanCommand({
+                        TableName: SCHEDULES_TABLE,
+                        FilterExpression: "performanceId = :pid",
+                        ExpressionAttributeValues: { ":pid": performanceId }
+                    }));
+                    resultItems = scanResult.Items || [];
+                } else {
+                    throw err;
+                }
+            }
+
+            // In-memory filtering
+            if (fromDate && resultItems.length > 0) {
+                resultItems = resultItems.filter((item: any) => item.date >= fromDate);
+            }
+        }
+
+        if (resultItems.length === 0) return [];
 
         const grouped: Record<string, Schedule> = {};
-        result.Items.forEach((item: any) => {
+        resultItems.forEach((item: any) => {
             const date = item.date;
             if (!grouped[date]) {
                 grouped[date] = {

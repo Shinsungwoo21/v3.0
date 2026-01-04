@@ -24,6 +24,7 @@ export interface TimerInfo {
     expiresAt: string;
     message: string;
     warningThreshold?: number;
+    holdingId?: string; // [V8.4] For auto-release on timeout
 }
 
 export interface ActionData {

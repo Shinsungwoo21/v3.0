@@ -40,9 +40,16 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
         }
     }, [content]);
 
-    // Hide metadata comments from view
+    // [V8.6] Hide metadata comments from view (both legacy HTML comments and new [[ACTION_DATA]] tags)
     const displayContent = useMemo(() => {
-        return content.replace(/<!-- ACTION_DATA: [\s\S]*? -->/g, '').trim();
+        let cleaned = content;
+        // Legacy HTML comment format
+        cleaned = cleaned.replace(/<!-- ACTION_DATA: [\s\S]*? -->/g, '');
+        // New [[ACTION_DATA]] tag format
+        cleaned = cleaned.replace(/\[\[ACTION_DATA\]\][\s\S]*?\[\[\/ACTION_DATA\]\]/g, '');
+        // Incomplete tag (streaming) - remove everything from [[ACTION_DATA]] to end
+        cleaned = cleaned.replace(/\[\[ACTION_DATA\]\][\s\S]*$/g, '');
+        return cleaned.trim();
     }, [content]);
 
     const seatGrades = actionData?.seatGrades; // [Issue 10] & [V7.9 Fix] Optional chaining
@@ -136,7 +143,12 @@ export const ChatMessage: React.FC<ChatMessageProps> = ({
                 {/* If Timer is present, it's global or message specific? Prompt said "UI에 ... 버튼이 자동으로 표시됩니다" */}
                 {role === 'assistant' && (
                     <div className="flex flex-col gap-2 ml-1 w-full">
-                        {/* [V7.10.3] 타이머는 헤더에서만 표시, 메시지 내 중복 제거 */}
+                        {/* [V8.5] 타이머를 버튼 영역 위에 표시 (헤더와 함께 이중 표시) */}
+                        {isLast && timer && (
+                            <div className="animate-in fade-in slide-in-from-top-2">
+                                <CountdownTimer timer={timer} onExpire={onTimerExpire} />
+                            </div>
+                        )}
 
                         {/* [V7.11] 버튼 잔류 버그 수정: 마지막 메시지에서만 버튼 표시 */}
                         {isLast && resolvedActions && resolvedActions.length > 0 && (
