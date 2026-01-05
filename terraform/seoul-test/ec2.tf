@@ -59,26 +59,29 @@ resource "aws_launch_template" "web" {
     echo "=== Installing Dependencies ==="
     sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && cd $HOME/megaticket && npm install'
     
-    # 8. 환경변수 설정 (.bashrc에 추가)
+    # 8. 환경변수 설정
     echo "=== Setting Environment Variables ==="
-    sudo -u ec2-user bash -c "echo 'export AWS_REGION=${var.aws_region}' >> $HOME/.bashrc"
-    sudo -u ec2-user bash -c "echo 'export NEXT_PUBLIC_AWS_REGION=${var.aws_region}' >> $HOME/.bashrc"
-    sudo -u ec2-user bash -c "echo 'export INTERNAL_API_URL=https://${var.domain_name}' >> $HOME/.bashrc"
+    # .bashrc에 추가 (SSH 접속 시 사용) - 명시적 경로 사용
+    echo 'export AWS_REGION=${var.aws_region}' >> /home/ec2-user/.bashrc
+    echo 'export NEXT_PUBLIC_AWS_REGION=${var.aws_region}' >> /home/ec2-user/.bashrc
+    echo 'export INTERNAL_API_URL=https://${var.domain_name}' >> /home/ec2-user/.bashrc
+    chown ec2-user:ec2-user /home/ec2-user/.bashrc
     
-    # 9. Web 앱 빌드
+    # 9. Web 앱 빌드 (환경변수 inline 전달 - NEXT_PUBLIC_* 는 빌드 시점에 bake-in 됨)
     echo "=== Building Web App ==="
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && cd $HOME/megaticket && npm run build:web'
+    sudo -u ec2-user bash -c "source \$HOME/.nvm/nvm.sh && cd \$HOME/megaticket && AWS_REGION=${var.aws_region} NEXT_PUBLIC_AWS_REGION=${var.aws_region} INTERNAL_API_URL=https://${var.domain_name} npm run build:web"
     
-    # 10. PM2로 Web 서비스 시작
+    # 10. PM2로 Web 서비스 시작 (환경변수 inline 전달)
     echo "=== Starting Web Service with PM2 ==="
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && cd $HOME/megaticket/apps/web && pm2 start npm --name "web-frontend" -- start'
+    sudo -u ec2-user bash -c "source \$HOME/.nvm/nvm.sh && cd \$HOME/megaticket/apps/web && AWS_REGION=${var.aws_region} INTERNAL_API_URL=https://${var.domain_name} pm2 start npm --name \"web-frontend\" -- start"
     
     # 11. PM2 저장 및 startup 설정
     echo "=== Setting up PM2 Startup ==="
     sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 save'
     
-    # PM2 startup 스크립트 생성 및 실행
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 startup systemd -u ec2-user --hp /home/ec2-user' | tail -1 | bash
+    # PM2 startup - NVM 경로를 포함하여 직접 실행
+    NODE_PATH=$(sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && dirname $(which node)')
+    sudo env PATH=$NODE_PATH:$PATH $(sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && which pm2') startup systemd -u ec2-user --hp /home/ec2-user --service-name pm2-ec2-user || true
     
     echo "=== User Data Script Completed: $(date) ==="
   EOF
@@ -150,24 +153,27 @@ resource "aws_launch_template" "app" {
     echo "=== Installing Dependencies ==="
     sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && cd $HOME/megaticket && npm install'
     
-    # 8. 환경변수 설정 (.bashrc에 추가)
+    # 8. 환경변수 설정
     echo "=== Setting Environment Variables ==="
-    sudo -u ec2-user bash -c "echo 'export AWS_REGION=${var.aws_region}' >> $HOME/.bashrc"
+    # .bashrc에 추가 (SSH 접속 시 사용) - 명시적 경로 사용
+    echo 'export AWS_REGION=${var.aws_region}' >> /home/ec2-user/.bashrc
+    chown ec2-user:ec2-user /home/ec2-user/.bashrc
     
-    # 9. App 빌드
+    # 9. App 빌드 (환경변수 inline 전달)
     echo "=== Building App ==="
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && cd $HOME/megaticket && npm run build:app'
+    sudo -u ec2-user bash -c "source \$HOME/.nvm/nvm.sh && cd \$HOME/megaticket && AWS_REGION=${var.aws_region} npm run build:app"
     
-    # 10. PM2로 App 서비스 시작
+    # 10. PM2로 App 서비스 시작 (환경변수 inline 전달)
     echo "=== Starting App Service with PM2 ==="
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && cd $HOME/megaticket/apps/app && pm2 start npm --name "app-backend" -- start'
+    sudo -u ec2-user bash -c "source \$HOME/.nvm/nvm.sh && cd \$HOME/megaticket/apps/app && AWS_REGION=${var.aws_region} pm2 start npm --name \"app-backend\" -- start"
     
     # 11. PM2 저장 및 startup 설정
     echo "=== Setting up PM2 Startup ==="
     sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 save'
     
-    # PM2 startup 스크립트 생성 및 실행
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 startup systemd -u ec2-user --hp /home/ec2-user' | tail -1 | bash
+    # PM2 startup - NVM 경로를 포함하여 직접 실행
+    NODE_PATH=$(sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && dirname $(which node)')
+    sudo env PATH=$NODE_PATH:$PATH $(sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && which pm2') startup systemd -u ec2-user --hp /home/ec2-user --service-name pm2-ec2-user || true
     
     echo "=== User Data Script Completed: $(date) ==="
   EOF
