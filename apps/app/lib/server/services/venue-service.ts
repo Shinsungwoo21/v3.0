@@ -10,6 +10,11 @@ export interface VenueData {
     createdAt?: string;
     sections?: any[];
     grades?: any[];
+    /**
+     * V8.21: Future migration field for seat recommendation logic.
+     * Contains scoring configuration and center points per section.
+     */
+    sectionConfig?: Record<string, any>;
 }
 
 export async function getVenue(venueId: string): Promise<VenueData | null> {

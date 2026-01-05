@@ -185,6 +185,9 @@ pm2 restart app-backend
 # 서버 중지/삭제
 pm2 stop web-frontend
 pm2 delete web-frontend
+
+# 로그(/var/log/user-data.log) 확인
+cat /var/log/user-data.log
 ```
 
 

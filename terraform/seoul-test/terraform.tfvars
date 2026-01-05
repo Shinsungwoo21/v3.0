@@ -9,7 +9,7 @@ environment  = "test"
 aws_region   = "ap-northeast-2"
 aws_profile  = "default"
 
-# VPC CIDR (기존 10.0.0.0/16 VPC와 충돌 방지)
+# VPC CIDR (10.100.0.0/16 사용 - 기존 VPC와 충돌 방지)
 vpc_cidr              = "10.100.0.0/16"
 public_subnet_a_cidr  = "10.100.0.0/26"
 public_subnet_c_cidr  = "10.100.0.64/26"

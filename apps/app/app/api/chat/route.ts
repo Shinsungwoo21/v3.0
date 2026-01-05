@@ -260,10 +260,15 @@ async function processConverseStream(
                         // [TEST MODE] 도구 성공 로그 비활성화 - 프로덕션 배포 시 주석 해제
                         // console.log(`[ToolSuccess] ${name} result size:`, JSON.stringify(result).length);
 
-                        // [V8.22] FAIL-SAFE UI Injection
+                        // [V8.24] 강화된 FAIL-SAFE UI Injection
+                        // AI 응답과 무관하게 hold_seats 성공 시 무조건 타이머/버튼 표시
                         const isHoldingTool = (name === 'hold_seats' || name === 'create_holding');
 
                         if (isHoldingTool && result.success && result.holdingId) {
+                            // ✅ 핵심: 선점 성공 플래그 설정 (AI 출력과 무관하게 강제 주입에 사용)
+                            (controller as any)._holdingSuccess = true;
+                            console.log('[HOLDING_SUCCESS] 🎫 좌석 선점 성공! holdingId:', result.holdingId);
+
                             if (result._actionDataForResponse) {
                                 // 정상 케이스
                                 console.log('[UI_INJECT] ACTION_DATA found from tool result.');
@@ -297,18 +302,30 @@ async function processConverseStream(
             nextMessages.push({ role: "user", content: toolResults.map(r => ({ toolResult: r })) });
             await processConverseStream(nextMessages, systemPrompt, controller, usedModel, depth + 1, isFallback);
 
-            // [V8.17 FIX] 재귀 완료 후 depth 관계없이 pendingActionData 스트림 주입
-            // (재귀 가장 마지막에 실행되므로 AI 응답 끝에 추가됨)
+            // [V8.24] 강화된 ACTION_DATA 주입 로직
+            // 선점 성공 시 AI 출력과 무관하게 무조건 주입
             const pendingActionData = (controller as any)._pendingActionData;
-            // [V8.22] 중복 주입 방지 Check
-            const fullText = (controller as any)._generatedText || "";
+            const holdingSuccess = (controller as any)._holdingSuccess;
+            let fullText = (controller as any)._generatedText || "";
 
-            if (pendingActionData && !fullText.includes('[[ACTION_DATA]]')) {
-                console.log('[AUTO_INJECT] Appending ACTION_DATA to stream (depth=' + depth + ')');
+            if (pendingActionData && holdingSuccess) {
+                // ✅ 선점 성공 시: AI가 ACTION_DATA를 출력했든 안했든 무조건 주입
+                // AI가 잘못된 포맷으로 출력했으면 제거 후 교체
+                if (fullText.includes('[[ACTION_DATA]]') || fullText.includes('<!-- ACTION_DATA')) {
+                    console.log('[FORCE_INJECT] AI outputted ACTION_DATA, but replacing with tool result for consistency.');
+                }
+                console.log('[FORCE_INJECT] ✅ Injecting ACTION_DATA (holdingSuccess=true, depth=' + depth + ')');
                 controller.enqueue(new TextEncoder().encode('\n\n' + pendingActionData));
-                (controller as any)._pendingActionData = null; // 중복 방지
+                (controller as any)._pendingActionData = null;
+                (controller as any)._actionDataInjected = true; // 주입 완료 플래그
             } else if (pendingActionData) {
-                console.log('[UI_INJECT] Injection skipped - ACTION_DATA already exists.');
+                // 선점 외 다른 도구에서 생성된 ACTION_DATA
+                if (!fullText.includes('[[ACTION_DATA]]')) {
+                    console.log('[AUTO_INJECT] Appending ACTION_DATA to stream (depth=' + depth + ')');
+                    controller.enqueue(new TextEncoder().encode('\n\n' + pendingActionData));
+                } else {
+                    console.log('[UI_INJECT] Injection skipped - ACTION_DATA already exists.');
+                }
                 (controller as any)._pendingActionData = null;
             }
         }
@@ -458,14 +475,20 @@ export async function POST(req: NextRequest) {
             async start(controller) {
                 await processConverseStream(messages, systemPromptText, controller, initialModel);
 
-                // [V8.23 FIX] 스트림 종료 직전 최종 안전장치: pendingActionData가 남아있으면 강제 주입
+                // [V8.24] 스트림 종료 직전 최종 안전장치
+                // holdingSuccess=true인데 아직 주입 안됐으면 무조건 주입
                 const pendingActionData = (controller as any)._pendingActionData;
-                const fullText = (controller as any)._generatedText || "";
+                const holdingSuccess = (controller as any)._holdingSuccess;
+                const actionDataInjected = (controller as any)._actionDataInjected;
 
-                if (pendingActionData && !fullText.includes('[[ACTION_DATA]]')) {
-                    console.log('[FINAL_INJECT] ACTION_DATA injected at stream close');
+                if (pendingActionData && !actionDataInjected) {
+                    console.log('[FINAL_INJECT] ✅ ACTION_DATA injected at stream close (holdingSuccess=' + holdingSuccess + ')');
                     controller.enqueue(new TextEncoder().encode('\n\n' + pendingActionData));
                     (controller as any)._pendingActionData = null;
+                    (controller as any)._actionDataInjected = true;
+                } else if (holdingSuccess && !actionDataInjected) {
+                    // 극단적 케이스: pendingActionData가 없지만 선점은 성공한 경우
+                    console.error('[CRITICAL_FAIL] Holding succeeded but no ACTION_DATA available!');
                 }
 
                 controller.close();

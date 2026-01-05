@@ -1072,3 +1072,35 @@ environment:
 
 **Last Updated**: 2026-01-04  
 **Maintainer**: ì„¤í˜œë´„ (MSP-Project-Pilot-Light)
+
+## 12. ÁÂ¼® ÃßÃµ ·ÎÁ÷ (Score Configuration)
+
+### 12.1 sectionConfig °³³ä (V8.21)
+
+AI°¡ »ç¿ëÀÚ¿¡°Ô "°¡Àå ÁÁÀº ÁÂ¼®(¸í´ç)"À» ÃßÃµÇÏ±â À§ÇÑ Ã¤Á¡Ç¥¿Í °°Àº ¼³Á¤°ªÀÔ´Ï´Ù.
+´Ü¼øÈ÷ ºó ÁÂ¼®À» ¹«ÀÛÀ§·Î ÃßÃµÇÏ´Â °ÍÀÌ ¾Æ´Ï¶ó, ±¸¿ªº° Æ¯¼º¿¡ µû¶ó Á¤±³ÇÏ°Ô Á¡¼ö¸¦ ¸Å°Ü ÃßÃµÇÕ´Ï´Ù.
+
+ÀÌ ¼³Á¤Àº venues Å×ÀÌºíÀÇ sectionConfig ÇÊµå¿¡ ÀúÀåµÇ¸ç (¶Ç´Â ÄÚµå ³» ÇÏµåÄÚµù), °ø¿¬Àå ±¸Á¶ º¯°æ ½Ã ÄÚµå ¼öÁ¤ ¾øÀÌ DB °ª Á¶Á¤¸¸À¸·Î ÃßÃµ ·ÎÁ÷À» º¯°æÇÒ ¼ö ÀÖ½À´Ï´Ù.
+
+### 12.2 ±¸¿ªº° ¸í´ç Á¤ÀÇ (Scoring Rules)
+
+sectionConfig´Â °¢ ±¸¿ª(Section)º°·Î "¾îµð°¡ ¸í´çÀÎ°¡"¸¦ Á¤ÀÇÇÕ´Ï´Ù.
+
+| ¼Ó¼º | °ª | ÀÇ¹Ì ¹× ÃßÃµ Àü·« |
+|------|----|-------------------|
+| **centerType** | middle | **Áß¾Ó ÁýÁßÇü (B±¸¿ª)**: ÁÂ¼® ¹øÈ£°¡ Áß°£°ªÀÏ¼ö·Ï ¸í´ç |
+| ^ | high | **¿ìÃø ÁöÇâÇü (A±¸¿ª)**: ÁÂ¼® ¹øÈ£°¡ Å¬¼ö·Ï(¿À¸¥ÂÊ) ¹«´ë Áß¾Ó¿¡ °¡±î¿ò |
+| ^ | low | **ÁÂÃø ÁöÇâÇü (C±¸¿ª)**: ÁÂ¼® ¹øÈ£°¡ ÀÛÀ»¼ö·Ï(¿ÞÂÊ) ¹«´ë Áß¾Ó¿¡ °¡±î¿ò |
+| **idealCenter**| 19.5 | middle Å¸ÀÔÀÏ ¶§, Á¤È®ÇÑ ¼¾ÅÍ Æ÷ÀÎÆ® (¿¹: 1 ~ 26¹ø ÁÂ¼® Áß 19.5°¡ Á¤Áß¾Ó) |
+| **idealRange** | 18~21 | ÃÖ°í Á¡¼ö¸¦ ºÎ¿©ÇÒ "°ñµçÁ¸" ¹üÀ§ (AI°¡ ÃÖ¿ì¼± ÃßÃµ) |
+
+### 12.3 OP¼® Æ¯º° Ã³¸®
+
+OP¼®(¿ÀÄÉ½ºÆ®¶ó ÇÇÆ®¼®)Àº B±¸¿ª¿¡ ¼ÓÇÏÁö¸¸, ÀÏ¹Ý B±¸¿ª°ú´Â ´Ù¸¥ ¸í´ç ±âÁØÀ» °¡Áý´Ï´Ù.
+specialRows ¼³Á¤À» ÅëÇØ Æ¯Á¤ ¿­¿¡¸¸ ´Ù¸¥ ±ÔÄ¢À» Àû¿ëÇÕ´Ï´Ù.
+
+- **ÀÏ¹Ý B±¸¿ª**: 19~20¹øÀÌ Áß¾Ó
+- **OP¼® (B±¸¿ª)**: 5~8¹øÀÌ Áß¾Ó
+
+>  **AI ÆÇ´Ü ¿¹½Ã**: "B±¸¿ª 19¹øÀÌ idealRange¿¡ Æ÷ÇÔµÇ¹Ç·Î ÃÖ°í Á¡¼ö ºÎ¿©! Á¦ÀÏ ¸ÕÀú ÃßÃµ ¸ñ·Ï¿¡ Æ÷ÇÔ½ÃÅ²´Ù."
+

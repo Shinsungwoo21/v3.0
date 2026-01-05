@@ -143,13 +143,13 @@ variable "domain_name" {
 variable "route53_zone_id" {
   description = "Route 53 호스팅 영역 ID"
   type        = string
-  default     = "Z08S3952ATBTQYQZAMX8"
+  default     = "Z0853952ATBTQYQZAMXB"
 }
 
 variable "acm_certificate_arn" {
   description = "ACM SSL 인증서 ARN"
   type        = string
-  default     = "arn:aws:acm:ap-northeast-2:626614672806:certificate/56b9d39f-fd74-4295-9982-ea14bfc20c78"
+  default     = "arn:aws:acm:ap-northeast-2:626614672806:certificate/56b9d39f-fd74-4296-9982-ea14bfc20c78"
 }
 
 # -----------------------------------------------------------------------------
