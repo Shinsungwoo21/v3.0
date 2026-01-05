@@ -256,8 +256,9 @@ async function processConverseStream(
                         console.error(`[ToolInputParseError] ${name}:`, e);
                     }
 
-                    // [V8.29] Self-Correction을 위한 sessionId 주입
-                    const toolInput = { ...parsedInput, sessionId };
+                    // [V8.29] Self-Correction을 위한 sessionId 주입 (hold_seats만 적용)
+                    const isHoldingTool = (name === 'hold_seats' || name === 'create_holding');
+                    const toolInput = isHoldingTool ? { ...parsedInput, sessionId } : parsedInput;
 
                     // BEDROCK_TOOLS가 undefined일 경우 방어
                     const validTool = (BEDROCK_TOOLS || []).some(t => t.name === name);
