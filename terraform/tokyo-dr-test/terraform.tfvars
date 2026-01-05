@@ -47,6 +47,6 @@ domain_name = "pilotlight-test.click"
 route53_zone_id = "Z0853952ATBTQYQZAMXB"
 
 # 서울 ALB 정보 (Primary)
-seoul_alb_dns     = "MegaTicket-ALB-2018892880.ap-northeast-2.elb.amazonaws.com"
+seoul_alb_dns     = "MegaTicket-ALB-700199485.ap-northeast-2.elb.amazonaws.com"
 seoul_alb_zone_id = "ZWKZPGTI48KDX"
 

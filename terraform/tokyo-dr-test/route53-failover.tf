@@ -76,7 +76,7 @@ data "aws_route53_zone" "selected" {
 # Primary Record - 서울 ALB (Seoul Terraform에서 관리함)
 resource "aws_route53_record" "primary" {
   provider = aws.global
-  count    = 0 # Seoul Terraform에서 관리하므로 여기서는 생성 안 함
+  count    = 1 # 도메인 연결을 위해 도쿄 TF에서도 관리함
 
   zone_id = data.aws_route53_zone.selected.zone_id
   name    = var.domain_name
@@ -86,7 +86,7 @@ resource "aws_route53_record" "primary" {
     type = "PRIMARY"
   }
 
-  set_identifier  = "primary-seoul"
+  set_identifier  = "seoul-primary"
   health_check_id = aws_route53_health_check.seoul_primary[0].id
 
   alias {

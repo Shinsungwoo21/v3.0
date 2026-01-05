@@ -23,29 +23,10 @@ resource "aws_launch_template" "web" {
   # User Data - DR 환경변수 설정 및 PM2 재시작
   # GoldenAMI에는 이미 모든 소프트웨어가 설치되어 있음
   # Web User Data (Golden AMI용 - 환경변수 설정 및 재시작)
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    set -e
-    exec > >(tee /var/log/user-data.log) 2>&1
-    echo "=== DR Web User Data Started: $(date) ==="
-    
-    # 환경변수 파일 생성 (export 형식)
-    cat > /home/ec2-user/dr-web-env.sh << 'ENVEOF'
-    export AWS_REGION=${var.aws_region}
-    export NEXT_PUBLIC_AWS_REGION=${var.aws_region}
-    export INTERNAL_API_URL=http://${aws_lb.nlb.dns_name}:3001
-ENVEOF
-    
-    chown ec2-user:ec2-user /home/ec2-user/dr-web-env.sh
-    
-    # PM2 restart with environment from file
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 delete web-frontend || true'
-    sudo -u ec2-user bash -c "source /home/ec2-user/dr-web-env.sh && source \$HOME/.nvm/nvm.sh && cd \$HOME/megaticket/apps/web && pm2 start npm --name 'web-frontend' -- start"
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 save'
-    
-    echo "=== DR Web User Data Completed: $(date) ==="
-  EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/user_data_web.sh", {
+    aws_region       = var.aws_region
+    internal_api_url = "http://${aws_lb.nlb.dns_name}:3001"
+  }))
 
   tag_specifications {
     resource_type = "instance"
@@ -75,33 +56,10 @@ resource "aws_launch_template" "app" {
   vpc_security_group_ids = [aws_security_group.app.id]
 
   # App User Data (Golden AMI용 - 환경변수 설정 및 재시작)
-  user_data = base64encode(<<-EOF
-    #!/bin/bash
-    set -e
-    exec > >(tee /var/log/user-data.log) 2>&1
-    echo "=== DR App User Data Started: $(date) ==="
-    
-    # 환경변수 파일 생성 (export 형식으로 source 가능하게)
-    cat > /home/ec2-user/dr-env.sh << 'ENVEOF'
-    export AWS_REGION=${var.aws_region}
-    export PORT=3001
-    export DYNAMODB_RESERVATIONS_TABLE=${var.dynamodb_table_prefix}-reservations
-    export DYNAMODB_PERFORMANCES_TABLE=${var.dynamodb_table_prefix}-performances
-    export DYNAMODB_VENUES_TABLE=${var.dynamodb_table_prefix}-venues
-    export DYNAMODB_SCHEDULES_TABLE=${var.dynamodb_table_prefix}-schedules
-    export DR_RECOVERY_MODE=true
-ENVEOF
-    
-    chown ec2-user:ec2-user /home/ec2-user/dr-env.sh
-    
-    # PM2 restart with environment from file
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 delete app-backend || true'
-    sudo -u ec2-user bash -c "source /home/ec2-user/dr-env.sh && source \$HOME/.nvm/nvm.sh && cd \$HOME/megaticket/apps/app && pm2 start npm --name 'app-backend' -- start"
-    sudo -u ec2-user bash -c 'source $HOME/.nvm/nvm.sh && pm2 save'
-    
-    echo "=== DR App User Data Completed: $(date) ==="
-  EOF
-  )
+  user_data = base64encode(templatefile("${path.module}/user_data_app.sh", {
+    aws_region            = var.aws_region
+    dynamodb_table_prefix = var.dynamodb_table_prefix
+  }))
 
   tag_specifications {
     resource_type = "instance"

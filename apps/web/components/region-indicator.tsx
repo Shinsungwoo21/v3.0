@@ -14,7 +14,8 @@ export function RegionIndicator() {
     useEffect(() => {
         const fetchRegion = async () => {
             try {
-                const res = await fetch('/api/health')
+                // 타임스탬프를 추가하여 브라우저/프록시 캐시 방지
+                const res = await fetch(`/api/health?t=${Date.now()}`, { cache: 'no-store' })
                 if (res.ok) {
                     const data = await res.json()
                     if (data.region) {
@@ -22,7 +23,7 @@ export function RegionIndicator() {
                     }
                 }
             } catch {
-                // 실패 시 URL 파라미터에서 가져오기
+                // 실패 시에만 URL 파라미터에서 가져오기
                 const urlRegion = searchParams.get('region')
                 if (urlRegion) setRegion(urlRegion)
             }
@@ -31,8 +32,8 @@ export function RegionIndicator() {
     }, [searchParams])
 
     useEffect(() => {
-        // Update URL with region if not present (to meet user request "add to address bar")
-        if (region && !searchParams.has('region')) {
+        // [수정] URL에 리전이 있더라도 실시간 데이터(region)와 다르면 강제로 업데이트함
+        if (region && searchParams.get('region') !== region) {
             const params = new URLSearchParams(searchParams.toString())
             params.set('region', region)
             router.replace(`${pathname}?${params.toString()}`, { scroll: false })

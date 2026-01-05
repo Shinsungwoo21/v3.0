@@ -5,10 +5,17 @@ const INTERNAL_API_URL = process.env.INTERNAL_API_URL || 'http://localhost:3001'
 const nextConfig: NextConfig = {
   transpilePackages: ['@mega-ticket/shared-types', '@mega-ticket/shared-utils'],
   async rewrites() {
+    const apiUrl = process.env.INTERNAL_API_URL || 'http://localhost:3001';
+    console.log(`[Rewrites] INTERNAL_API_URL: ${apiUrl}`);
+
     return [
       {
+        source: '/api/backend/:path*',
+        destination: `${apiUrl}/api/:path*`,
+      },
+      {
         source: '/api/:path*',
-        destination: `${INTERNAL_API_URL}/api/:path*`,
+        destination: `${apiUrl}/api/:path*`,
       },
     ];
   },

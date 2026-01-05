@@ -8,7 +8,7 @@ class ApiClient {
         // 서버 사이드(SSR)에서는 내부 URL로 호출
         this.baseUrl = typeof window === 'undefined'
             ? (process.env.INTERNAL_API_URL || 'http://localhost:3001')
-            : '';
+            : ''; // Client handles rewrites via same-origin path
     }
 
     async getPerformance(id: string): Promise<Performance> {

@@ -66,13 +66,33 @@ terraform apply
 ```bash
 cd terraform/tokyo-dr-test
 
-# terraform.tfvars 파일 수정 (AMI ID 입력)
-# web_ami_id = "ami-0123456789abcdef0" (도쿄로 복사된 ID)
-# app_ami_id = "ami-0123456789abcdef1" (도쿄로 복사된 ID)
-
+# 1. 초기화
 terraform init
-terraform apply
+
+# 2. 기존 Route 53 레코드 가져오기 (최초 1회 필수)
+# [주의] 이 명령은 현재 AWS 콘솔에 레코드가 있는데, 내 테라폼 '상태 파일'에는 없을 때만 실행합니다.
+terraform import aws_route53_record.primary[0] Z0853952ATBTQYQZAMXB_pilotlight-test.click_A_seoul-primary
+
+# 3. 변경 사항 적용
+terraform apply -auto-approve
 ```
+
+> [!IMPORTANT]
+> **기존 DNS 레코드 관리 (Terraform Import 가이드)**
+>
+> 본 프로젝트는 기존에 수동으로 생성된 Route 53 레코드(`pilotlight-test.click`)를 포함하고 있습니다. 인프라를 처음부터 깨끗하게 시작하지 않고 기존 자원을 연동하는 경우, 다음의 관리 원칙을 준수해야 합니다.
+>
+> 1. **Resource Import의 목적**: 
+>    - 실제 클라우드 리소스와 테라폼 상태 파일(`terraform.tfstate`) 간의 소유권을 동기화하기 위함입니다.
+>    - **"수동으로 만든 게 AWS에 남아있어서"** 하는 일회성 작업입니다.
+>
+> 2. **인수인계 및 Git 관련 주의사항 (중요!)**:
+>    - **Git에 올라가는 것**: `.tf` 코드만 올라갑니다. 실제 리소스의 소유권(등기부등본)인 `.tfstate` 파일은 보통 보안상 Git에 올리지 않습니다.
+>    - **다른 사람이 작업할 때**: 다른 사람이 이 코드를 받아 `apply`를 하려는데 AWS에 이미 리소스가 떠 있다면, 그 사람도 자기 로컬 컴퓨터에서 **딱 한 번 `import`**를 해줘야 합니다.
+>    - **깔끔한 해결책**: 만약 인수인계 전에 `terraform destroy`를 해서 AWS에서 리소스를 지워버린다면, 다음 사람은 `import` 과정 없이 바로 `apply`만으로 새 인프라를 구축할 수 있습니다.
+>
+> 3. **운영 시나리오**:
+>    - 한 번 등기(Import)를 마친 후에는 테라폼이 주인이므로, 수동으로 콘솔에서 뭔가를 고치지 않는 한 `import`를 다시 할 일은 없습니다.
 
 도쿄 리전은 Golden AMI를 사용하므로 배포 속도가 빠릅니다. (약 3~5분 소요)
 
