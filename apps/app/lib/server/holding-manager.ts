@@ -101,89 +101,131 @@ export async function createHolding(
         sourceRegion: sourceRegion
     });
 
-    try {
-        // [DEBUG] 호출 파라미터 로깅
-        console.log('[HOLDING] createHolding called:', {
-            performanceId,
-            date,
-            time,
-            pk,
-            seatIds: seats.map(s => s.seatId),
-            userId,
-            venue,
-            performanceTitle,
-            sourceRegion
-        });
+    const MAX_RETRIES = 3;
+    let retryCount = 0;
 
-        // Check availability first
-        const { available, conflicts } = await areSeatsAvailable(performanceId, seats.map(s => s.seatId), date, time);
-        console.log('[HOLDING] areSeatsAvailable result:', { available, conflicts });
-        if (!available) {
-            return {
-                success: false,
-                error: `이미 예약된 좌석입니다: ${conflicts.join(', ')}`,
-                unavailableSeats: conflicts
-            };
-        }
+    // [DEBUG] 호출 파라미터 로깅
+    console.log('[HOLDING] createHolding calling:', {
+        performanceId,
+        date,
+        time,
+        seatIds: seats.map(s => s.seatId),
+        userId,
+        try: retryCount + 1
+    });
 
-        // Create transactions to hold all seats
-        const puts = seats.map(seat => ({
-            Put: {
+    // 1. Check availability first (한 번만 체크)
+    const { available, conflicts } = await areSeatsAvailable(performanceId, seats.map(s => s.seatId), date, time);
+    console.log('[HOLDING] areSeatsAvailable result:', { available, conflicts });
+    if (!available) {
+        return {
+            success: false,
+            error: `이미 예약된 좌석입니다: ${conflicts.join(', ')}`,
+            unavailableSeats: conflicts
+        };
+    }
+
+    // 2. Retry Loop for Transaction & Verification
+    while (retryCount < MAX_RETRIES) {
+        try {
+            retryCount++;
+            console.log(`[HOLDING] Transaction Attempt ${retryCount}/${MAX_RETRIES}`);
+
+            // Create transactions to hold all seats
+            const puts = seats.map(seat => ({
+                Put: {
+                    TableName: RESERVATIONS_TABLE,
+                    Item: {
+                        PK: pk,
+                        SK: createSK(seat.seatId),
+                        status: 'HOLDING',
+                        holdingId,
+                        userId,
+                        seatId: seat.seatId,
+                        seatNumber: seat.seatNumber || seat.number,
+                        rowId: seat.rowId || seat.row,
+                        grade: seat.grade,
+                        price: seat.price,
+                        performanceId,
+                        performanceTitle: performanceTitle || '',  // V7.18: 비정규화
+                        venue: venue || '',                        // V7.18: 비정규화
+                        posterUrl: posterUrl || '',                // V7.20: 비정규화
+                        date,
+                        time,
+                        createdAt: new Date().toISOString(), // 매 시도마다 갱신
+                        expiresAt: expiresAt,
+                        holdExpiresAt: ttl,
+                        ttl: ttl,
+                        sourceRegion: sourceRegion // V7.18: 환경변수에서 읽은 값 사용
+                    },
+                    ConditionExpression: "attribute_not_exists(SK) OR (expiresAt < :now AND #s = :h_status)",
+                    ExpressionAttributeNames: {
+                        "#s": "status"
+                    },
+                    ExpressionAttributeValues: {
+                        ":now": new Date().toISOString(),
+                        ":h_status": "HOLDING"
+                    }
+                }
+            }));
+
+            await dynamoDb.send(new TransactWriteCommand({
+                TransactItems: puts
+            }));
+
+            console.log(`[HOLDING] Transaction Success (Try ${retryCount}). Verifying...`);
+
+            // [Verify-After-Write] Strong Consistent Read로 검증
+            // 트랜잭션은 Atomic하므로 첫 번째 좌석만 확인해도 충분함
+            const verifyResult = await dynamoDb.send(new GetCommand({
                 TableName: RESERVATIONS_TABLE,
-                Item: {
+                Key: {
                     PK: pk,
-                    SK: createSK(seat.seatId),
-                    status: 'HOLDING',
-                    holdingId,
-                    userId,
-                    seatId: seat.seatId,
-                    seatNumber: seat.seatNumber || seat.number,
-                    rowId: seat.rowId || seat.row,
-                    grade: seat.grade,
-                    price: seat.price,
-                    performanceId,
-                    performanceTitle: performanceTitle || '',  // V7.18: 비정규화
-                    venue: venue || '',                        // V7.18: 비정규화
-                    posterUrl: posterUrl || '',                // V7.20: 비정규화
-                    date,
-                    time,
-                    createdAt: now.toISOString(),
-                    expiresAt: expiresAt,
-                    holdExpiresAt: ttl, // Business logic field
-                    ttl: ttl, // DynamoDB TTL field (Universal)
-                    sourceRegion: sourceRegion // V7.18: 환경변수에서 읽은 값 사용
+                    SK: createSK(seats[0].seatId)
                 },
-                ConditionExpression: "attribute_not_exists(SK) OR (expiresAt < :now AND #s = :h_status)",
-                ExpressionAttributeNames: {
-                    "#s": "status"
-                },
-                ExpressionAttributeValues: {
-                    ":now": now.toISOString(),
-                    ":h_status": "HOLDING"
+                ConsistentRead: true
+            }));
+
+            if (verifyResult.Item && verifyResult.Item.holdingId === holdingId) {
+                console.log(`[HOLDING] ✅ Verification Success! Data confirmed in DynamoDB.`);
+
+                // [V8.3] KST 시간 포맷 (AI가 변환하지 않도록 서버에서 제공)
+                const expiresAtText = new Intl.DateTimeFormat('ko-KR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false,
+                    timeZone: 'Asia/Seoul'
+                }).format(new Date(expiresAt));
+
+                return { success: true, holdingId, expiresAt, expiresAtText, remainingSeconds: HOLDING_TTL_SECONDS };
+            } else {
+                console.warn(`[HOLDING] ⚠️ Verification Failed! Data not found/matched after write. (Try ${retryCount})`);
+                // 실패 시 다음 재시도 (재시도 루프 계속)
+                // 필요하다면 여기서 명시적으로 Delete를 날릴 수도 있지만,
+                // 트랜잭션은 성공했는데 조회가 안 된 것이므로 일시적 문제일 가능성이 큼.
+                // 다음 시도에서 덮어쓰기 시도.
+                if (retryCount === MAX_RETRIES) {
+                    console.error('[HOLDING] CRITICAL: All retries failed verification.');
                 }
             }
-        }));
 
-        await dynamoDb.send(new TransactWriteCommand({
-            TransactItems: puts
-        }));
+        } catch (error: any) {
+            console.error(`[HOLDING] Error creating holding (Try ${retryCount}):`, error);
 
-        // [V8.3] KST 시간 포맷 (AI가 변환하지 않도록 서버에서 제공)
-        const expiresAtText = new Intl.DateTimeFormat('ko-KR', {
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: false,
-            timeZone: 'Asia/Seoul'
-        }).format(new Date(expiresAt));
-
-        return { success: true, holdingId, expiresAt, expiresAtText, remainingSeconds: HOLDING_TTL_SECONDS };
-    } catch (error: any) {
-        if (error.name === 'TransactionCanceledException') {
-            return { success: false, error: "이미 예약된 좌석이 포함되어 있습니다." };
+            if (error.name === 'TransactionCanceledException') {
+                // 다른 사용자가 선점한 경우 등은 재시도하지 않고 바로 실패 처리
+                return { success: false, error: "이미 예약된 좌석이 포함되어 있습니다." };
+            }
+            // 그 외 일시적 오류는 재시도 루프 계속
         }
-        console.error(`[HoldingManager] Error creating holding:`, error);
-        return { success: false, error: "선점 처리 중 오류가 발생했습니다." };
+
+        // 재시도 간 약간의 지연 (Exponential Backoff 느낌으로 100ms, 200ms...)
+        if (retryCount < MAX_RETRIES) {
+            await new Promise(resolve => setTimeout(resolve, retryCount * 100));
+        }
     }
+
+    return { success: false, error: "일시적인 오류로 선점이 확인되지 않습니다. 잠시 후 다시 시도해주세요." };
 }
 
 

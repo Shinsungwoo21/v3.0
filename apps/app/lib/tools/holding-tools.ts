@@ -179,7 +179,9 @@ export async function holdSeats(input: any) {
         return {
             success: false,
             error: result.error || "좌석 선점에 실패했습니다.",
-            message: `죄송합니다. ${result.unavailableSeats?.join(', ') || '선택하신 좌석'}이(가) 이미 선점 또는 예약 중입니다. 다른 좌석을 선택해주세요.`,
+            message: result.error === "일시적인 오류로 선점이 확인되지 않습니다. 잠시 후 다시 시도해주세요."
+                ? "죄송합니다, 일시적인 시스템 오류로 선점 확인이 되지 않았습니다. 잠시 후 다시 시도해주시겠어요? 🙏"
+                : `죄송합니다. ${result.unavailableSeats?.join(', ') || '선택하신 좌석'}이(가) 이미 선점 또는 예약 중입니다. 다른 좌석을 선택해주세요.`,
             unavailableSeats: result.unavailableSeats,
             releasedHoldings: releasedIds,
             _actions: [
@@ -244,7 +246,7 @@ export async function holdSeats(input: any) {
         })),
         totalPrice: seatObjects.reduce((sum, s) => sum + (s.price || 0), 0),
         seatMapUrl: `/performances/${performanceId}/seats?date=${date}&time=${time}`,
-        message: `좌석이 선점되었습니다. 10분 내에 결제를 완료해주세요. (마감: ${expiresAtText})`,
+        message: `좌석이 선점되었습니다. 10분 내에 결제를 완료해주세요. (마감: ${expiresAtText})\n\n👉 [결제 완료하러 가기](${payUrl})`,
 
         _actionDataForResponse: `[[ACTION_DATA]]\n${actionDataJson}\n[[/ACTION_DATA]]`,
 
