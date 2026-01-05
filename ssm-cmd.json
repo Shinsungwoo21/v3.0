@@ -1,7 +1,5 @@
 {
     "commands": [
-        "sudo -u ec2-user bash -c 'source ~/.nvm/nvm.sh && pm2 status'",
-        "sudo -u ec2-user bash -c 'source ~/.nvm/nvm.sh && pm2 resurrect'",
-        "sudo -u ec2-user bash -c 'source ~/.nvm/nvm.sh && pm2 status'"
+        "sudo -u ec2-user bash -c 'source /home/ec2-user/.bashrc && source ~/.nvm/nvm.sh && cd ~/megaticket/apps/app && pm2 delete all; pm2 start npm --name app-backend -- start && pm2 save'"
     ]
 }
