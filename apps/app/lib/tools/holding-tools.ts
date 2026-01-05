@@ -51,7 +51,7 @@ export async function holdSeats(input: any) {
     const seatGrades = perf?.seatGrades || [];
 
     // [V8.18] AI가 글로벌 번호를 seatId에 잘못 넣었으면 자동 변환
-    const correctedSeats = targetSeats.map((id: string) => {
+    const correctedSeats = seatIds.map((id: string) => {
         // @ts-ignore - SectionData 타입 호환성
         const validation = validateAndCorrectSeatId(id, sections);
         if (validation.needsConversion) {
