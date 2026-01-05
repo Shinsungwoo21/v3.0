@@ -261,7 +261,7 @@ async function processConverseStream(
                     const toolInput = isHoldingTool ? { ...parsedInput, sessionId } : parsedInput;
 
                     // BEDROCK_TOOLS가 undefined일 경우 방어
-                    const validTool = (BEDROCK_TOOLS || []).some(t => t.name === name);
+                    const validTool = (BEDROCK_TOOLS || []).some(t => t.toolSpec?.name === name);
 
                     if (validTool) {
                         try {

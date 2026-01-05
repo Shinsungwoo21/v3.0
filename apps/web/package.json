@@ -6,7 +6,7 @@
     "dev": "next dev",
     "clean": "if exist .next rmdir /s /q .next",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -H 0.0.0.0 -p 3000",
     "lint": "eslint",
     "migrate-v5": "tsx scripts/migrate-v5-data.ts"
   },
