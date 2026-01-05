@@ -79,6 +79,7 @@ async function processConverseStream(
     systemPrompt: string,
     controller: ReadableStreamDefaultController,
     modelId: string,
+    sessionId: string = "",
     depth = 0,
     isFallback = false
 ) {
@@ -255,44 +256,53 @@ async function processConverseStream(
                         console.error(`[ToolInputParseError] ${name}:`, e);
                     }
 
-                    try {
-                        const result = await executeTool(name || "unknown", parsedInput);
-                        // [TEST MODE] 도구 성공 로그 비활성화 - 프로덕션 배포 시 주석 해제
-                        // console.log(`[ToolSuccess] ${name} result size:`, JSON.stringify(result).length);
+                    // [V8.29] Self-Correction을 위한 sessionId 주입
+                    const toolInput = { ...parsedInput, sessionId };
 
-                        // [V8.24] 강화된 FAIL-SAFE UI Injection
-                        // AI 응답과 무관하게 hold_seats 성공 시 무조건 타이머/버튼 표시
-                        const isHoldingTool = (name === 'hold_seats' || name === 'create_holding');
+                    // BEDROCK_TOOLS가 undefined일 경우 방어
+                    const validTool = (BEDROCK_TOOLS || []).some(t => t.name === name);
 
-                        if (isHoldingTool && result.success && result.holdingId) {
-                            // ✅ 핵심: 선점 성공 플래그 설정 (AI 출력과 무관하게 강제 주입에 사용)
-                            (controller as any)._holdingSuccess = true;
-                            console.log('[HOLDING_SUCCESS] 🎫 좌석 선점 성공! holdingId:', result.holdingId);
+                    if (validTool) {
+                        try {
+                            const result = await executeTool(name || "unknown", toolInput);
 
-                            if (result._actionDataForResponse) {
-                                // 정상 케이스
-                                console.log('[UI_INJECT] ACTION_DATA found from tool result.');
-                                (controller as any)._pendingActionData = result._actionDataForResponse;
-                            } else {
-                                // ⚠️ Fail-safe: 데이터 누락 시 강제 생성
-                                console.warn('[FAIL-SAFE] ACTION_DATA missing! Generating fallback UI data.');
-                                const perfId = parsedInput.performanceId || 'unknown';
-                                const date = parsedInput.date || '';
-                                const time = parsedInput.time || '';
-                                (controller as any)._pendingActionData = generateActionData(result, perfId, date, time);
+                            // [V8.24] 강화된 FAIL-SAFE UI Injection
+                            const isHoldingTool = (name === 'hold_seats' || name === 'create_holding');
+                            if (isHoldingTool && result.success && result.holdingId) {
+                                (controller as any)._holdingSuccess = true;
+                                console.log('[HOLDING_SUCCESS] 🎫 좌석 선점 성공! holdingId:', result.holdingId);
+
+                                if (result._actionDataForResponse) {
+                                    console.log('[UI_INJECT] ACTION_DATA found from tool result.');
+                                    (controller as any)._pendingActionData = result._actionDataForResponse;
+                                } else {
+                                    console.warn('[FAIL-SAFE] ACTION_DATA missing! Generating fallback UI data.');
+                                    const perfId = parsedInput.performanceId || 'unknown';
+                                    const date = parsedInput.date || '';
+                                    const time = parsedInput.time || '';
+                                    (controller as any)._pendingActionData = generateActionData(result, perfId, date, time);
+                                }
                             }
-                        }
 
+                            toolResults.push({
+                                toolUseId: toolUseId || "unknown",
+                                content: [{ json: result }],
+                                status: "success"
+                            });
+                        } catch (toolError: any) {
+                            console.error(`[ToolExecError] ${name}:`, toolError);
+                            toolResults.push({
+                                toolUseId: toolUseId || "unknown",
+                                content: [{ json: { error: "도구 실행 중 오류가 발생했습니다.", details: toolError.message } }],
+                                status: "error"
+                            });
+                        }
+                    } else {
+                        // Tool not found
+                        console.warn(`[ToolExec] Unknown tool requested: ${name}`);
                         toolResults.push({
                             toolUseId: toolUseId || "unknown",
-                            content: [{ json: result }],
-                            status: "success"
-                        });
-                    } catch (toolError: any) {
-                        console.error(`[ToolExecError] ${name}:`, toolError);
-                        toolResults.push({
-                            toolUseId: toolUseId || "unknown",
-                            content: [{ json: { error: "도구 실행 중 오류가 발생했습니다.", details: toolError.message } }],
+                            content: [{ text: `Tool '${name}' not found.` }],
                             status: "error"
                         });
                     }
@@ -300,7 +310,7 @@ async function processConverseStream(
             }
 
             nextMessages.push({ role: "user", content: toolResults.map(r => ({ toolResult: r })) });
-            await processConverseStream(nextMessages, systemPrompt, controller, usedModel, depth + 1, isFallback);
+            await processConverseStream(nextMessages, systemPrompt, controller, usedModel, sessionId, depth + 1, isFallback);
 
             // [V8.24] 강화된 ACTION_DATA 주입 로직
             // 선점 성공 시 AI 출력과 무관하게 무조건 주입
@@ -363,7 +373,7 @@ async function processConverseStream(
                 }));
                 */
 
-                await processConverseStream(messages, systemPrompt, controller, BEDROCK_MODELS.SECONDARY.id, depth + 1, true);
+                await processConverseStream(messages, systemPrompt, controller, BEDROCK_MODELS.SECONDARY.id, sessionId, depth + 1, true);
                 return;
             }
         }
@@ -473,7 +483,7 @@ export async function POST(req: NextRequest) {
 
         const stream = new ReadableStream({
             async start(controller) {
-                await processConverseStream(messages, systemPromptText, controller, initialModel);
+                await processConverseStream(messages, systemPromptText, controller, initialModel, effectiveSessionId);
 
                 // [V8.24] 스트림 종료 직전 최종 안전장치
                 // holdingSuccess=true인데 아직 주입 안됐으면 무조건 주입

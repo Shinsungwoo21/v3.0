@@ -2,8 +2,20 @@ import { Seat, validateAndCorrectSeatId } from '@mega-ticket/shared-types';
 import { createHolding, releaseHolding, releaseHoldingsByUser } from '../server/holding-manager';
 import { getPerformance, getSeatInfo } from '../server/performance-service';
 
+const RETRY_CACHE = new Map<string, { count: number, timestamp: number }>();
+
+function getRetryCount(sessionId: string): number {
+    const entry = RETRY_CACHE.get(sessionId);
+    if (!entry) return 0;
+    if (Date.now() - entry.timestamp > 60000) { // TTL 60s
+        RETRY_CACHE.delete(sessionId);
+        return 0;
+    }
+    return entry.count;
+}
+
 export async function holdSeats(input: any) {
-    const { performanceId, date, time, seatIds, seats, userId } = input;
+    const { performanceId, date, time, seatIds, seats, userId, sessionId } = input;
     const targetSeats = seatIds || seats; // seatIds(V7.2) or seats(Old)
 
     // [V8.13 DEBUG] AI가 전달한 좌석 ID 상세 로깅
@@ -21,6 +33,48 @@ export async function holdSeats(input: any) {
 
     if (!targetSeats || !Array.isArray(targetSeats)) {
         return { error: "Invalid seat selection. Please provide a list of seat IDs." };
+    }
+
+    // [V8.29] Self-Correction: Seat ID Format Validation
+    let isInvalidFormat = false;
+    let invalidExample = "";
+
+    // Check if any seat ID is NOT in the format '1층-B-2-11'
+    for (const id of targetSeats) {
+        if (!/^\d+층-[A-Za-z]+-[0-9A-Za-z]+-\d+$/.test(id)) {
+            isInvalidFormat = true;
+            invalidExample = id;
+            break;
+        }
+    }
+
+    if (isInvalidFormat) {
+        let currentRetry = 0;
+        if (sessionId) {
+            currentRetry = getRetryCount(sessionId);
+        }
+
+        if (currentRetry >= 2) {
+            console.log(`[Self-Correction] ⛔ Max retry exceeded for session ${sessionId} (Count: ${currentRetry})`);
+            // Clear cache to prevent permanent block if user tries again later manually
+            if (sessionId) RETRY_CACHE.delete(sessionId);
+            return {
+                success: false,
+                error: `Max Retry Exceeded: Invalid Seat ID format '${invalidExample}'. Please select seats again from the list.`
+            };
+        }
+
+        if (sessionId) {
+            // Increment retry count
+            RETRY_CACHE.set(sessionId, { count: currentRetry + 1, timestamp: Date.now() });
+            console.log(`[Self-Correction] 🔄 Invalid Format detected. Triggering Retry ${currentRetry + 1}/2 for session ${sessionId}`);
+        }
+
+        return {
+            success: false,
+            // Actionable Error Message for AI
+            error: `Invalid Seat ID Format '${invalidExample}'. Please retry using the '1층-B-2-11' format (Floor-Section-Row-Number). Check the 'seatIds' output from 'get_available_seats' tool.`
+        };
     }
 
     // [V8.13 DEBUG] 각 좌석 ID 파싱 결과 로깅
@@ -51,7 +105,7 @@ export async function holdSeats(input: any) {
     const seatGrades = perf?.seatGrades || [];
 
     // [V8.18] AI가 글로벌 번호를 seatId에 잘못 넣었으면 자동 변환
-    const correctedSeats = seatIds.map((id: string) => {
+    const correctedSeats = targetSeats.map((id: string) => {
         // @ts-ignore - SectionData 타입 호환성
         const validation = validateAndCorrectSeatId(id, sections);
         if (validation.needsConversion) {
@@ -236,6 +290,9 @@ export async function holdSeats(input: any) {
             { id: "seat_map", label: "좌석 배치도 보기", action: "navigate", url: seatMapUrlWithRegion, target: "_blank", style: "default" }
         ]
     });
+
+    // [V8.29] Self-Correction: Success, so clear the retry cache
+    if (sessionId) RETRY_CACHE.delete(sessionId);
 
     return {
         success: true,
