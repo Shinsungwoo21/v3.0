@@ -569,6 +569,10 @@ export async function getSeatStatusMap(performanceId: string, date: string, time
             else if (item.status === 'DR_RECOVERED') {
                 statusMap[seatId] = 'holding';
             }
+            // [V8.23 FIX] CANCELLED는 명시적으로 available로 처리 (TTL 지연 대응)
+            else if (item.status === 'CANCELLED') {
+                statusMap[seatId] = 'available';
+            }
             else if (item.status === 'HOLDING') {
                 // [V7.10.3] 만료된 HOLDING은 available로 처리
                 const expiresAt = item.expiresAt;
