@@ -82,6 +82,9 @@ curl http://<ALB_DNS_NAME>/
 
 # API 헬스체크
 curl http://<ALB_DNS_NAME>/api/health
+
+# 도메인 접속
+https://pilotlight-test.click
 ```
 
 ### Step 3: GoldenAMI 생성
