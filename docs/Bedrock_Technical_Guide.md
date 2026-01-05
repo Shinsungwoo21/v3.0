@@ -1070,37 +1070,48 @@ environment:
 
 ---
 
-**Last Updated**: 2026-01-04  
+## 12. 좌석 선점 안정성 및 UX 강화 (V8.27)
+
+### 12.1 작업 개요
+사용자가 좌석 선점 시도 시 UI(타이머, 버튼)가 표시되지 않거나 데이터 저장 여부가 불확실했던 문제를 해결하기 위해 **3중 안전장치**를 도입했습니다.
+
+### 12.2 주요 변경 사항 (User Perspective)
+1.  **DB 무결성 검증 (Verify-After-Write)**: 좌석 선점 시 데이터가 확실히 저장되었는지 "서버 문지기"가 한 번 더 확인합니다. 저장이 확인되지 않으면 자동으로 재시도하여 데이터 유실을 방지합니다.
+2.  **결제 링크 백업 (Fallback UI)**: 화면에 버튼이 뜨지 않는 오류가 발생해도, 챗봇 메시지 내의 **[결제 완료하러 가기]** 텍스트 링크를 통해 결제를 진행할 수 있습니다.
+3.  **입력값 검증 강화**: AI가 잘못된 좌석 정보(예: "5~6번")를 전달하거나 잘못된 안내를 하지 않도록 입구에서 차단합니다.
+
+### 12.3 개발 및 인프라 상세 (Technical Perspective)
+
+#### 🔧 관련 파일 및 변경 내용
+| 파일 | 변경 내용 |
+|------|----------|
+| `holding-manager.ts` | Verify-After-Write (Strong Consistent Read) 및 재시도(Retry) 로직 추가 |
+| `holding-tools.ts` | Fallback Markdown 링크 생성, seatIds 입력값 유효성(Array) 검증 |
+| `base-prompt.ts` | DR(재해복구) 안내 멘트 조건 강화 (오발송 수정) |
+
+#### 🏗️ 인프라 영향 분석
+- **DynamoDB**: 선점 트랜잭션마다 `GetItem`(ConsistentRead)이 1회 추가 수행됩니다.
+    - 영향: Write 요청 1회당 Read Unit(RCU) 1 추가 소비.
+    - 비용: On-demand 모드를 사용 중이므로 전체 청구 비용에 미치는 영향은 미미함 (예상 비용 증가율 < 5%).
+- **Latency**: 검증 로직 추가로 인해 응답 시간이 수 ms 증가할 수 있으나, 안전성 확보를 위한 필수 비용으로 간주됩니다.
+
+#### 🚨 롤백 방법 (Emergency Rollback)
+배포 후 심각한 문제 발생 시 V8.26 버전(직전 커밋)으로 롤백합니다.
+```bash
+# holding-manager.ts 롤백
+git checkout v8.26 -- apps/app/lib/server/holding-manager.ts
+
+# 변경 사항 적용
+git commit -m "Revert: V8.27 changes due to critical issue"
+git push origin main
+```
+
+### 12.4 테스트 결과
+1.  **챗봇 응답**: "좌석이 선점되었습니다!" 메시지와 함께 타이머, 결제 버튼 정상 표시.
+2.  **UI Fallback**: 버튼 렌더링 실패 시 텍스트 링크로 결제 페이지 이동 가능 확인.
+3.  **데이터 무결성**: DynamoDB에 `HOLDING` 상태 및 `expiresAt` 정확하게 저장됨.
+
+---
+
+**Last Updated**: 2026-01-05  
 **Maintainer**: 설혜봄 (MSP-Project-Pilot-Light)
-
-## 12. �¼� ��õ ���� (Score Configuration)
-
-### 12.1 sectionConfig ���� (V8.21)
-
-AI�� ����ڿ��� "���� ���� �¼�(����)"�� ��õ�ϱ� ���� ä��ǥ�� ���� �������Դϴ�.
-�ܼ��� �� �¼��� �������� ��õ�ϴ� ���� �ƴ϶�, ������ Ư���� ���� �����ϰ� ������ �Ű� ��õ�մϴ�.
-
-�� ������ venues ���̺��� sectionConfig �ʵ忡 ����Ǹ� (�Ǵ� �ڵ� �� �ϵ��ڵ�), ������ ���� ���� �� �ڵ� ���� ���� DB �� ���������� ��õ ������ ������ �� �ֽ��ϴ�.
-
-### 12.2 ������ ���� ���� (Scoring Rules)
-
-sectionConfig�� �� ����(Section)���� "��� �����ΰ�"�� �����մϴ�.
-
-| �Ӽ� | �� | �ǹ� �� ��õ ���� |
-|------|----|-------------------|
-| **centerType** | middle | **�߾� ������ (B����)**: �¼� ��ȣ�� �߰����ϼ��� ���� |
-| ^ | high | **���� ������ (A����)**: �¼� ��ȣ�� Ŭ����(������) ���� �߾ӿ� ����� |
-| ^ | low | **���� ������ (C����)**: �¼� ��ȣ�� ��������(����) ���� �߾ӿ� ����� |
-| **idealCenter**| 19.5 | middle Ÿ���� ��, ��Ȯ�� ���� ����Ʈ (��: 1 ~ 26�� �¼� �� 19.5�� ���߾�) |
-| **idealRange** | 18~21 | �ְ� ������ �ο��� "�����" ���� (AI�� �ֿ켱 ��õ) |
-
-### 12.3 OP�� Ư�� ó��
-
-OP��(���ɽ�Ʈ�� ��Ʈ��)�� B������ ��������, �Ϲ� B�������� �ٸ� ���� ������ �����ϴ�.
-specialRows ������ ���� Ư�� ������ �ٸ� ��Ģ�� �����մϴ�.
-
-- **�Ϲ� B����**: 19~20���� �߾�
-- **OP�� (B����)**: 5~8���� �߾�
-
->  **AI �Ǵ� ����**: "B���� 19���� idealRange�� ���ԵǹǷ� �ְ� ���� �ο�! ���� ���� ��õ ��Ͽ� ���Խ�Ų��."
-
