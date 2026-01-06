@@ -7,11 +7,18 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
+# 기본 AMI 조회 (Launch Template 생성용 - Step Function이 나중에 GoldenAMI로 업데이트)
+# -----------------------------------------------------------------------------
+data "aws_ssm_parameter" "amazon_linux_2" {
+  name = "/aws/service/ami-amazon-linux-latest/amzn2-ami-hvm-x86_64-gp2"
+}
+
+# -----------------------------------------------------------------------------
 # Launch Template - Web (Private Subnet, GoldenAMI 사용)
 # -----------------------------------------------------------------------------
 resource "aws_launch_template" "web" {
   name_prefix   = "${var.project_name}-DR-Web-LT-"
-  # image_id는 Step Function에서 LT 업데이트 시 주입
+  image_id      = data.aws_ssm_parameter.amazon_linux_2.value  # 기본값, Step Function이 GoldenAMI로 업데이트
   instance_type = var.instance_type
   key_name      = var.key_pair_name
 
@@ -24,9 +31,10 @@ resource "aws_launch_template" "web" {
   # User Data - DR 환경변수 설정 및 PM2 재시작
   # GoldenAMI에는 이미 모든 소프트웨어가 설치되어 있음
   # Web User Data (Golden AMI용 - 환경변수 설정 및 재시작)
+  # ⚠️ NLB DNS는 Step Function에서 Launch Template 업데이트 시 주입
   user_data = base64encode(templatefile("${path.module}/user_data_web.sh", {
     aws_region       = var.aws_region
-    internal_api_url = "http://${aws_lb.nlb.dns_name}:3001"
+    internal_api_url = "http://NLB_DNS_PLACEHOLDER:3001"  # Step Function이 실제 NLB DNS로 업데이트
   }))
 
   tag_specifications {
@@ -47,7 +55,7 @@ resource "aws_launch_template" "web" {
 # -----------------------------------------------------------------------------
 resource "aws_launch_template" "app" {
   name_prefix   = "${var.project_name}-DR-App-LT-"
-  # image_id는 Step Function에서 LT 업데이트 시 주입
+  image_id      = data.aws_ssm_parameter.amazon_linux_2.value  # 기본값, Step Function이 GoldenAMI로 업데이트
   instance_type = var.instance_type
   key_name      = var.key_pair_name
 
@@ -107,7 +115,7 @@ resource "aws_autoscaling_group" "web" {
 
 # -----------------------------------------------------------------------------
 # Auto Scaling Group - App (Private Subnet)
-# NLB TG만 연결 - ALB 직접 접근 차단
+# ⚠️ NLB TG는 Step Function에서 동적으로 연결
 # -----------------------------------------------------------------------------
 resource "aws_autoscaling_group" "app" {
   name                = "${var.project_name}-DR-App-ASG"
@@ -115,8 +123,8 @@ resource "aws_autoscaling_group" "app" {
   max_size            = var.app_asg_max
   desired_capacity    = var.app_asg_desired
   vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_c.id]
-  target_group_arns   = [aws_lb_target_group.app_nlb.arn]  # NLB TG만 연결
-  health_check_type   = "ELB"
+  target_group_arns   = []  # Step Function에서 NLB TG 생성 후 연결
+  health_check_type   = "EC2"  # NLB 없이 시작하므로 EC2 헬스체크 사용
   health_check_grace_period = 300
 
   launch_template {

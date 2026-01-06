@@ -13,8 +13,8 @@ output "alb_dns_name" {
 }
 
 output "nlb_dns_name" {
-  description = "DR NLB DNS Name"
-  value       = aws_lb.nlb.dns_name
+  description = "DR NLB DNS Name - Step Function에서 동적 생성"
+  value       = "Step Function에서 SSM Parameter Store에 저장됨"
 }
 
 output "web_asg_name" {

@@ -41,29 +41,6 @@ resource "aws_lb_target_group" "web" {
 }
 
 # -----------------------------------------------------------------------------
-# Target Group - App (Port 3001)
-# -----------------------------------------------------------------------------
-resource "aws_lb_target_group" "app" {
-  name     = "${var.project_name}-App-TG"
-  port     = 3001
-  protocol = "HTTP"
-  vpc_id   = aws_vpc.main.id
-
-  health_check {
-    path                = "/api/health"
-    healthy_threshold   = 2
-    unhealthy_threshold = 5
-    timeout             = 5
-    interval            = 30
-    matcher             = "200"
-  }
-
-  tags = {
-    Name = "${var.project_name}-App-TG"
-  }
-}
-
-# -----------------------------------------------------------------------------
 # ALB Listener - HTTP (Port 80) → HTTPS 리다이렉트
 # -----------------------------------------------------------------------------
 resource "aws_lb_listener" "http" {
@@ -99,20 +76,9 @@ resource "aws_lb_listener" "https" {
 }
 
 # -----------------------------------------------------------------------------
-# ALB Listener Rule - API 요청은 App Target Group으로 전달 (HTTPS)
+# ⚠️ ALB App TG 및 API 리스너 규칙 제거됨
 # -----------------------------------------------------------------------------
-resource "aws_lb_listener_rule" "api" {
-  listener_arn = aws_lb_listener.https.arn
-  priority     = 1
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.app.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api/*"]
-    }
-  }
-}
+# Next.js rewrites로 /api/* 요청이 INTERNAL_API_URL (NLB)로 프록시됨
+# 따라서 ALB에서 직접 App으로 전달할 필요 없음
+# App은 NLB를 통해서만 접근 가능 (Web → NLB → App)
+# -----------------------------------------------------------------------------

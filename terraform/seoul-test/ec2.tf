@@ -262,6 +262,7 @@ resource "aws_autoscaling_group" "web" {
 
 # -----------------------------------------------------------------------------
 # Auto Scaling Group - App (Private Subnet)
+# NLB TG만 연결 - ALB 직접 접근 차단 (Next.js rewrites로 프록시)
 # -----------------------------------------------------------------------------
 resource "aws_autoscaling_group" "app" {
   name                = "${var.project_name}-App-ASG"
@@ -269,7 +270,7 @@ resource "aws_autoscaling_group" "app" {
   max_size            = var.app_asg_max
   desired_capacity    = var.app_asg_desired
   vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_c.id]
-  target_group_arns   = [aws_lb_target_group.app.arn, aws_lb_target_group.app_nlb.arn]
+  target_group_arns   = [aws_lb_target_group.app_nlb.arn]  # NLB TG만 연결
   health_check_type   = "ELB"
   health_check_grace_period = 600  # 빌드 시간 고려하여 10분
 
