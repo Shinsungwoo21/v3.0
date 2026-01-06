@@ -90,7 +90,45 @@ terraform apply -auto-approve
 >    - **Git에 올라가는 것**: `.tf` 코드만 올라갑니다. 실제 리소스의 소유권(등기부등본)인 `.tfstate` 파일은 보통 보안상 Git에 올리지 않습니다.
 >    - **다른 사람이 작업할 때**: 다른 사람이 이 코드를 받아 `apply`를 하려는데 AWS에 이미 리소스가 떠 있다면, 그 사람도 자기 로컬 컴퓨터에서 **딱 한 번 `import`**를 해줘야 합니다.
 >    - **깔끔한 해결책**: 만약 인수인계 전에 `terraform destroy`를 해서 AWS에서 리소스를 지워버린다면, 다음 사람은 `import` 과정 없이 바로 `apply`만으로 새 인프라를 구축할 수 있습니다.
->
+
+---
+
+## 🏗️ 전체 네트워크 구조 (Public/Private)
+
+본 프로젝트는 보안을 위해 **Public-Private 분리 구조**를 엄격히 따릅니다.
+
+-   **Public 영역**:
+    -   **ALB (External)**: 외부 인터넷 트래픽이 처음 들어오는 관문입니다.
+    -   **NAT Gateway**: Private Subnet의 인스턴스들이 인터넷(패키지 설치 등)으로 나갈 때 사용합니다. (EIP 할당됨)
+-   **Private 영역**:
+    -   **Web Instance (Next.js)**: Public IP가 부여되지 않으며, ALB를 통해서만 접근 가능합니다.
+    -   **App Instance (Node.js)**: 웹 서버나 내부 NLB를 통해서만 접근 가능한 가장 깊은 곳에 위치합니다.
+    -   **NLB (Internal)**: 서비스 내부 통신(Web → App)을 위해 사용하며, Private Subnet에 위치합니다.
+
+---
+
+## 👥 팀원 공유 및 테스트 시 주의사항
+
+팀원들에게 공유하여 테스트할 때 다음 항목들을 반드시 확인하도록 안내해 주세요.
+
+### 1. 전제 조건 (Prerequisites)
+-   **IAM 권한**: `BedrockDevUser-hyebom`과 같은 충분한 권한이 있는 프로필이 필요합니다.
+-   **Key Pair**: 서울(`ap-northeast-2`)과 도쿄(`ap-northeast-1`) 리전에 각각 동일한 이름의 키 페어가 생성되어 있어야 합니다. (기본값: `seungwan_seoul`, `seungwan_tokyo`)
+
+### 2. `terraform.tfvars` 커스텀 설정
+팀원 각자의 환경에 맞게 다음 변수들을 수정해야 합니다.
+-   `aws_profile`: 본인의 AWS CLI 프로필 이름으로 변경
+-   `acm_certificate_arn`: 본인의 리전별 인증서 ARN (수동 생성 시)
+-   `web_ami_id` / `app_ami_id`: **서울에서 도쿄로 복사한 최신 Golden AMI ID**를 입력해야 합니다. (서울 AMI와 도쿄 AMI ID는 서로 다릅니다!)
+
+### 3. Golden AMI 업데이트 프로세스
+1.  서울에서 코드가 수정되면 서울에서 먼저 `apply` 하여 서버를 실행하고, 잘 작동하면 **AMI를 새로 만듭니다.**
+2.  새로운 서울 AMI를 **도쿄 리전으로 복사**합니다.
+3.  복사된 **도쿄용 AMI ID**를 `tokyo-dr-test/terraform.tfvars`에 업데이트한 후 도쿄에서 `apply` 합니다.
+
+> [!IMPORTANT]
+> **API Proxy 패턴** 덕분에 이제 AMI 안의 소스 코드는 수정할 필요가 없습니다! 오직 **AMI ID만 도쿄용으로 잘 복사해서 입력**해 주면 모든 테스트가 끝납니다.
+
 > 3. **운영 시나리오**:
 >    - 한 번 등기(Import)를 마친 후에는 테라폼이 주인이므로, 수동으로 콘솔에서 뭔가를 고치지 않는 한 `import`를 다시 할 일은 없습니다.
 
@@ -133,3 +171,6 @@ pm2 restart all --update-env
 - **Failover**: 서울 리전 중단 시 약 1분 후 도쿄 리전으로 DNS 자동 전환.
 - **Failback**: 서울 리전 복구 시 **서울이 Primary이므로 무조건 서울로 복귀**.
 - **주의**: 서울이 죽은 상태에서 도쿄를 끄면 서비스 전면 중단됨. 서울을 보고 싶다면 도쿄를 끄는 게 아니라 서울을 살려야 함.
+
+
+로그 확인: 새 인스턴스가 생성되면 다시 한번 tail -f /var/log/user-data.log

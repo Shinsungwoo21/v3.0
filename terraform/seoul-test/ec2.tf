@@ -57,66 +57,20 @@ resource "aws_launch_template" "web" {
     
     # 6.1 누락된 빌드 파일 복구 (안전장치 - GitHub 유실 대비)
     echo "=== Restoring Missing Build Files (Fail-safe) ==="
-    sudo -u ec2-user bash -c 'cd $HOME/megaticket && ( [ ! -f package.json ] && echo "Restoring package.json..." && cat << "EOF_PKG" > package.json
-{
-    "name": "mega-ticket",
-    "private": true,
-    "workspaces": [
-        "apps/*",
-        "packages/*"
-    ],
-    "scripts": {
-        "dev": "turbo run dev",
-        "dev:web": "turbo run dev --filter=web",
-        "dev:app": "turbo run dev --filter=app",
-        "build": "turbo run build",
-        "build:web": "turbo run build --filter=web",
-        "build:app": "turbo run build --filter=app",
-        "lint": "turbo run lint",
-        "clean": "turbo run clean",
-        "clean:force": "echo \"Warning: This may fail if files are locked.\" && turbo run clean --no-daemon && if exist node_modules rmdir /s /q node_modules",
-        "test-chatbot": "node diagnose_v7_9.js"
-    },
-    "devDependencies": {
-        "@aws-sdk/credential-providers": "^3.958.0",
-        "prettier": "^3.1.0",
-        "turbo": "^2.3.3",
-        "typescript": "^5.3.0"
-    },
-    "packageManager": "npm@10.2.5"
-}
-EOF_PKG
-) || true'
-
-    sudo -u ec2-user bash -c 'cd $HOME/megaticket && ( [ ! -f turbo.json ] && echo "Restoring turbo.json..." && cat << "EOF_TURBO" > turbo.json
-{
-    "$schema": "https://turbo.build/schema.json",
-    "globalDependencies": [
-        ".env"
-    ],
-    "tasks": {
-        "build": {
-            "dependsOn": [
-                "^build"
-            ],
-            "outputs": [
-                ".next/**",
-                "!.next/cache/**",
-                "dist/**"
-            ]
-        },
-        "dev": {
-            "cache": false,
-            "persistent": true
-        },
-        "clean": {
-            "cache": false
-        },
-        "lint": {}
-    }
-}
-EOF_TURBO
-) || true'
+    sudo -u ec2-user bash -c 'cd $HOME/megaticket && (
+        if [ ! -f package.json ]; then
+            echo "Restoring package.json..."
+            echo "ewogICAgIm5hbWUiOiAibWVnYS10aWNrZXQiLAogICAgInByaXZhdGUiOiB0cnVlLAogICAgIndvcmtzcGFjZXMiOiBbCiAgICAgICAgImFwcHMvKiIsCiAgICAgICAgInBhY2thZ2VzLyoiCiAgICBdLAogICAgInNjcmlwdHMiOiB7CiAgICAgICAgImRldiI6ICJ0dXJibyBydW4gZGV2IiwKICAgICAgICAiZGV2OndlYiI6ICJ0dXJibyBydW4gZGV2IC0tZmlsdGVyPXdlYiIsCiAgICAgICAgImRldjphcHAiOiAidHVyYm8gcnVuIGRldiAtLWZpbHRlcj1hcHAiLAogICAgICAgICJidWlsZCI6ICJ0dXJibyBydW4gYnVpbGQiLAogICAgICAgICJidWlsZDp3ZWIiOiAidHVyYm8gcnVuIGJ1aWxkIC0tZmlsdGVyPXdlYiIsCiAgICAgICAgImJ1aWxkOmFwcCI6ICJ0dXJibyBydW4gYnVpbGQgLS1maWx0ZXI9YXBwIiwKICAgICAgICAibGludCI6ICJ0dXJibyBydW4gbGludCIsCiAgICAgICAgImNsZWFuIjogInR1cmJvIHJ1biBjbGVhbiIsCiAgICAgICAgImNsZWFuOmZvcmNlIjogImVjaG8gXCJXYXJuaW5nOiBUaGlzIG1heSBmYWlsIGlmIGZpbGVzIGFyZSBsb2NrZWQuXCIgJiYgdHVyYm8gcnVuIGNsZWFuIC0tbm8tZGFlbW9uICYmIGlmIGV4aXN0IG5vZGVfbW9kdWxlcyBybWRpciAvcyAvcSBub2RlX21vZHVsZXMiLAogICAgICAgICJ0ZXN0LWNoYXRib3QiOiAibm9kZSBkaWFnbm9zZV92N185LmpzIgogICAgfSwKICAgICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAgICAgIkBhd3Mtc2RrL2NyZWRlbnRpYWwtcHJvdmlkZXJzIjogIl4zLjk1OC4wIiwKICAgICAgICAicHJldHRpZXIiOiAiXjMuMS4wIiwKICAgICAgICAidHVyYm8iOiAiXjIuMy4zIiwKICAgICAgICAidHlwZXNjcmlwdCI6ICJeNS4zLjAiCiAgICB9LAogICAgInBhY2thZ2VNYW5hZ2VyIjogIm5wbUAxMC4yLjUiCn0=" | base64 -d > package.json
+        fi
+        if [ ! -f turbo.json ]; then
+            echo "Restoring turbo.json..."
+            echo "ewogICAgIiRzY2hlbWEiOiAiaHR0cHM6Ly90dXJiby5idWlsZC9zY2hlbWEuanNvbiIsCiAgICAiZ2xvYmFsRGVwZW5kZW5jaWVzIjogWwogICAgICAgICIuZW52IgogICAgXSwKICAgICJ0YXNrcyI6IHsKICAgICAgICAiYnVpbGQiOiB7CiAgICAgICAgICAgICJkZXBlbmRzT24iOiBbCiAgICAgICAgICAgICAgICAiXmJ1aWxkIgogICAgICAgICAgICBdLAogICAgICAgICAgICAib3V0cHV0cyI6IFsKICAgICAgICAgICAgICAgICIubmV4dC8qKiIsCiAgICAgICAgICAgICAgICAiIS5uZXh0L2NhY2hlLyoqIiwKICAgICAgICAgICAgICAgICJkaXN0LyoqIgogICAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICAiZGV2IjogewogICAgICAgICAgICAiY2FjaGUiOiBmYWxzZSwKICAgICAgICAgICAgInBlcnNpc3RlbnQiOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiY2xlYW4iOiB7CiAgICAgICAgICAgICJjYWNoZSI6IGZhbHNlCiAgICAgICAgfSwKICAgICAgICAibGludCI6IHt9CiAgICB9Cn0=" | base64 -d > turbo.json
+        fi
+        if [ ! -f tsconfig.base.json ]; then
+            echo "Restoring tsconfig.base.json..."
+            echo "ewogICAgImNvbXBpbGVyT3B0aW9ucyI6IHsKICAgICAgICAidGFyZ2V0IjogIkVTMjAyMCIsCiAgICAgICAgImxpYiI6IFsKICAgICAgICAgICAgImRvbSIsCiAgICAgICAgICAgICJkb20uaXRlcmFibGUiLAogICAgICAgICAgICAiZXNuZXh0IgogICAgICAgIF0sCiAgICAgICAgInN0cmljdCI6IHRydWUsCiAgICAgICAgImVzTW9kdWxlSW50ZXJvcCI6IHRydWUsCiAgICAgICAgIm1vZHVsZSI6ICJlc25leHQiLAogICAgICAgICJza2lwTGliQ2hlY2siOiB0cnVlLAogICAgICAgICJiYXNlVXJsIjogIi4iLAogICAgICAgICJwYXRocyI6IHsKICAgICAgICAgICAgIkBtZWdhLXRpY2tldC9zaGFyZWQtdHlwZXMiOiBbCiAgICAgICAgICAgICAgICAicGFja2FnZXMvc2hhcmVkLXR5cGVzL3NyYyIKICAgICAgICAgICAgXSwKICAgICAgICAgICAgIkBtZWdhLXRpY2tldC9zaGFyZWQtdXRpbHMiOiBbCiAgICAgICAgICAgICAgICAicGFja2FnZXMvc2hhcmVkLXV0aWxzL3NyYyIKICAgICAgICAgICAgXQogICAgICAgIH0KICAgIH0KfQ==" | base64 -d > tsconfig.base.json
+        fi
+    )' || true
 
     
     # 7. 의존성 설치
@@ -215,66 +169,20 @@ resource "aws_launch_template" "app" {
     
     # 6.1 누락된 빌드 파일 복구 (안전장치 - GitHub 유실 대비)
     echo "=== Restoring Missing Build Files (Fail-safe) ==="
-    sudo -u ec2-user bash -c 'cd $HOME/megaticket && ( [ ! -f package.json ] && echo "Restoring package.json..." && cat << "EOF_PKG" > package.json
-{
-    "name": "mega-ticket",
-    "private": true,
-    "workspaces": [
-        "apps/*",
-        "packages/*"
-    ],
-    "scripts": {
-        "dev": "turbo run dev",
-        "dev:web": "turbo run dev --filter=web",
-        "dev:app": "turbo run dev --filter=app",
-        "build": "turbo run build",
-        "build:web": "turbo run build --filter=web",
-        "build:app": "turbo run build --filter=app",
-        "lint": "turbo run lint",
-        "clean": "turbo run clean",
-        "clean:force": "echo \"Warning: This may fail if files are locked.\" && turbo run clean --no-daemon && if exist node_modules rmdir /s /q node_modules",
-        "test-chatbot": "node diagnose_v7_9.js"
-    },
-    "devDependencies": {
-        "@aws-sdk/credential-providers": "^3.958.0",
-        "prettier": "^3.1.0",
-        "turbo": "^2.3.3",
-        "typescript": "^5.3.0"
-    },
-    "packageManager": "npm@10.2.5"
-}
-EOF_PKG
-) || true'
-
-    sudo -u ec2-user bash -c 'cd $HOME/megaticket && ( [ ! -f turbo.json ] && echo "Restoring turbo.json..." && cat << "EOF_TURBO" > turbo.json
-{
-    "$schema": "https://turbo.build/schema.json",
-    "globalDependencies": [
-        ".env"
-    ],
-    "tasks": {
-        "build": {
-            "dependsOn": [
-                "^build"
-            ],
-            "outputs": [
-                ".next/**",
-                "!.next/cache/**",
-                "dist/**"
-            ]
-        },
-        "dev": {
-            "cache": false,
-            "persistent": true
-        },
-        "clean": {
-            "cache": false
-        },
-        "lint": {}
-    }
-}
-EOF_TURBO
-) || true'
+    sudo -u ec2-user bash -c 'cd $HOME/megaticket && (
+        if [ ! -f package.json ]; then
+            echo "Restoring package.json..."
+            echo "ewogICAgIm5hbWUiOiAibWVnYS10aWNrZXQiLAogICAgInByaXZhdGUiOiB0cnVlLAogICAgIndvcmtzcGFjZXMiOiBbCiAgICAgICAgImFwcHMvKiIsCiAgICAgICAgInBhY2thZ2VzLyoiCiAgICBdLAogICAgInNjcmlwdHMiOiB7CiAgICAgICAgImRldiI6ICJ0dXJibyBydW4gZGV2IiwKICAgICAgICAiZGV2OndlYiI6ICJ0dXJibyBydW4gZGV2IC0tZmlsdGVyPXdlYiIsCiAgICAgICAgImRldjphcHAiOiAidHVyYm8gcnVuIGRldiAtLWZpbHRlcj1hcHAiLAogICAgICAgICJidWlsZCI6ICJ0dXJibyBydW4gYnVpbGQiLAogICAgICAgICJidWlsZDp3ZWIiOiAidHVyYm8gcnVuIGJ1aWxkIC0tZmlsdGVyPXdlYiIsCiAgICAgICAgImJ1aWxkOmFwcCI6ICJ0dXJibyBydW4gYnVpbGQgLS1maWx0ZXI9YXBwIiwKICAgICAgICAibGludCI6ICJ0dXJibyBydW4gbGludCIsCiAgICAgICAgImNsZWFuIjogInR1cmJvIHJ1biBjbGVhbiIsCiAgICAgICAgImNsZWFuOmZvcmNlIjogImVjaG8gXCJXYXJuaW5nOiBUaGlzIG1heSBmYWlsIGlmIGZpbGVzIGFyZSBsb2NrZWQuXCIgJiYgdHVyYm8gcnVuIGNsZWFuIC0tbm8tZGFlbW9uICYmIGlmIGV4aXN0IG5vZGVfbW9kdWxlcyBybWRpciAvcyAvcSBub2RlX21vZHVsZXMiLAogICAgICAgICJ0ZXN0LWNoYXRib3QiOiAibm9kZSBkaWFnbm9zZV92N185LmpzIgogICAgfSwKICAgICJkZXZEZXBlbmRlbmNpZXMiOiB7CiAgICAgICAgIkBhd3Mtc2RrL2NyZWRlbnRpYWwtcHJvdmlkZXJzIjogIl4zLjk1OC4wIiwKICAgICAgICAicHJldHRpZXIiOiAiXjMuMS4wIiwKICAgICAgICAidHVyYm8iOiAiXjIuMy4zIiwKICAgICAgICAidHlwZXNjcmlwdCI6ICJeNS4zLjAiCiAgICB9LAogICAgInBhY2thZ2VNYW5hZ2VyIjogIm5wbUAxMC4yLjUiCn0=" | base64 -d > package.json
+        fi
+        if [ ! -f turbo.json ]; then
+            echo "Restoring turbo.json..."
+            echo "ewogICAgIiRzY2hlbWEiOiAiaHR0cHM6Ly90dXJiby5idWlsZC9zY2hlbWEuanNvbiIsCiAgICAiZ2xvYmFsRGVwZW5kZW5jaWVzIjogWwogICAgICAgICIuZW52IgogICAgXSwKICAgICJ0YXNrcyI6IHsKICAgICAgICAiYnVpbGQiOiB7CiAgICAgICAgICAgICJkZXBlbmRzT24iOiBbCiAgICAgICAgICAgICAgICAiXmJ1aWxkIgogICAgICAgICAgICBdLAogICAgICAgICAgICAib3V0cHV0cyI6IFsKICAgICAgICAgICAgICAgICIubmV4dC8qKiIsCiAgICAgICAgICAgICAgICAiIS5uZXh0L2NhY2hlLyoqIiwKICAgICAgICAgICAgICAgICJkaXN0LyoqIgogICAgICAgICAgICBdCiAgICAgICAgfSwKICAgICAgICAiZGV2IjogewogICAgICAgICAgICAiY2FjaGUiOiBmYWxzZSwKICAgICAgICAgICAgInBlcnNpc3RlbnQiOiB0cnVlCiAgICAgICAgfSwKICAgICAgICAiY2xlYW4iOiB7CiAgICAgICAgICAgICJjYWNoZSI6IGZhbHNlCiAgICAgICAgfSwKICAgICAgICAibGludCI6IHt9CiAgICB9Cn0=" | base64 -d > turbo.json
+        fi
+        if [ ! -f tsconfig.base.json ]; then
+            echo "Restoring tsconfig.base.json..."
+            echo "ewogICAgImNvbXBpbGVyT3B0aW9ucyI6IHsKICAgICAgICAidGFyZ2V0IjogIkVTMjAyMCIsCiAgICAgICAgImxpYiI6IFsKICAgICAgICAgICAgImRvbSIsCiAgICAgICAgICAgICJkb20uaXRlcmFibGUiLAogICAgICAgICAgICAiZXNuZXh0IgogICAgICAgIF0sCiAgICAgICAgInN0cmljdCI6IHRydWUsCiAgICAgICAgImVzTW9kdWxlSW50ZXJvcCI6IHRydWUsCiAgICAgICAgIm1vZHVsZSI6ICJlc25leHQiLAogICAgICAgICJza2lwTGliQ2hlY2siOiB0cnVlLAogICAgICAgICJiYXNlVXJsIjogIi4iLAogICAgICAgICJwYXRocyI6IHsKICAgICAgICAgICAgIkBtZWdhLXRpY2tldC9zaGFyZWQtdHlwZXMiOiBbCiAgICAgICAgICAgICAgICAicGFja2FnZXMvc2hhcmVkLXR5cGVzL3NyYyIKICAgICAgICAgICAgXSwKICAgICAgICAgICAgIkBtZWdhLXRpY2tldC9zaGFyZWQtdXRpbHMiOiBbCiAgICAgICAgICAgICAgICAicGFja2FnZXMvc2hhcmVkLXV0aWxzL3NyYyIKICAgICAgICAgICAgXQogICAgICAgIH0KICAgIH0KfQ==" | base64 -d > tsconfig.base.json
+        fi
+    )' || true
 
     
     # 7. 의존성 설치
