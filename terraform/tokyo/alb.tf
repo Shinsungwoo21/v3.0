@@ -6,21 +6,6 @@
 # =============================================================================
 
 # -----------------------------------------------------------------------------
-# ALB (Public Subnet에 배치)
-# -----------------------------------------------------------------------------
-resource "aws_lb" "dr" {
-  name               = "${var.project_name}-alb-${var.region_code}"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.alb.id]
-  subnets            = [aws_subnet.public_a.id, aws_subnet.public_c.id]
-
-  tags = {
-    Name = "${var.project_name}-alb-${var.region_code}"
-  }
-}
-
-# -----------------------------------------------------------------------------
 # Target Group - App (Port 3001)
 # -----------------------------------------------------------------------------
 resource "aws_lb_target_group" "app" {
