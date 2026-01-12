@@ -29,12 +29,6 @@ variable "aws_region" {
   default     = "ap-northeast-2"
 }
 
-variable "aws_profile" {
-  description = "AWS CLI 프로파일 이름"
-  type        = string
-  default     = "default"
-}
-
 # -----------------------------------------------------------------------------
 # 공통 태그
 # -----------------------------------------------------------------------------

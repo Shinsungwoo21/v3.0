@@ -29,12 +29,6 @@ variable "aws_region" {
   default     = "ap-northeast-1"
 }
 
-variable "aws_profile" {
-  description = "AWS CLI 프로파일 이름"
-  type        = string
-  default     = "default"
-}
-
 # -----------------------------------------------------------------------------
 # VPC 설정 (V3.0 CIDR: 10.0.1.0/24)
 # -----------------------------------------------------------------------------
@@ -71,12 +65,6 @@ variable "private_subnet_c_cidr" {
 # -----------------------------------------------------------------------------
 # EC2 설정
 # -----------------------------------------------------------------------------
-variable "key_pair_name" {
-  description = "EC2 SSH 키 페어 이름 (도쿄 리전)"
-  type        = string
-  default     = "seungwan_tokyo"
-}
-
 variable "instance_type" {
   description = "EC2 인스턴스 타입"
   type        = string
@@ -86,7 +74,6 @@ variable "instance_type" {
 variable "base_ami_id" {
   description = "App EC2 Golden AMI ID (도쿄 리전)"
   type        = string
-  default     = ""  # terraform.tfvars에서 지정
 }
 
 # -----------------------------------------------------------------------------

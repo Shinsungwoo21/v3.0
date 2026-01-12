@@ -8,7 +8,6 @@ project_name = "plcr"
 region_code  = "an2"
 environment  = "prod"
 aws_region   = "ap-northeast-2"
-aws_profile  = "default"
 
 # VPC CIDR (10.0.0.0/24 사용 - V3.0 확정, 서울 Main Region)
 vpc_cidr              = "10.0.0.0/24"
@@ -27,7 +26,7 @@ app_asg_min     = 1
 app_asg_max     = 4
 app_asg_desired = 1
 
-# DynamoDB (참조용 - 이미 생성됨)
+# DynamoDB
 dynamodb_table_prefix = "KDT-Msp4-PLDR"
 
 # 도메인
