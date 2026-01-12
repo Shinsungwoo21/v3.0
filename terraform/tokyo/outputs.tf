@@ -7,19 +7,9 @@ output "vpc_id" {
   value       = aws_vpc.dr.id
 }
 
-output "alb_dns_name" {
-  description = "ALB DNS Name"
-  value       = aws_lb.dr.dns_name
-}
-
 output "app_asg_name" {
   description = "App Auto Scaling Group Name"
   value       = aws_autoscaling_group.app.name
-}
-
-output "app_target_group_arn" {
-  description = "App Target Group ARN"
-  value       = aws_lb_target_group.app.arn
 }
 
 output "private_subnet_ids" {
