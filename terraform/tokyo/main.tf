@@ -113,28 +113,6 @@ resource "aws_subnet" "private_c" {
 }
 
 # -----------------------------------------------------------------------------
-# NAT Gateway (Private Subnet → 인터넷 접근용)
-# -----------------------------------------------------------------------------
-resource "aws_eip" "nat" {
-  domain = "vpc"
-
-  tags = {
-    Name = "${var.project_name}-eip-nat-${var.region_code}"
-  }
-}
-
-resource "aws_nat_gateway" "dr" {
-  allocation_id = aws_eip.nat.id
-  subnet_id     = aws_subnet.public_a.id
-
-  tags = {
-    Name = "${var.project_name}-nat-${var.region_code}"
-  }
-
-  depends_on = [aws_internet_gateway.dr]
-}
-
-# -----------------------------------------------------------------------------
 # Route Tables
 # -----------------------------------------------------------------------------
 resource "aws_route_table" "public" {
@@ -153,9 +131,10 @@ resource "aws_route_table" "public" {
 resource "aws_route_table" "private" {
   vpc_id = aws_vpc.dr.id
 
-  route {
-    cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = aws_nat_gateway.dr.id
+  lifecycle {
+    ignore_changes = [
+      route
+    ]
   }
 
   tags = {

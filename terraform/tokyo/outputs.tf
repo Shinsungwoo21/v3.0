@@ -41,31 +41,3 @@ output "app_security_group_id" {
   description = "App Security Group ID"
   value       = aws_security_group.app.id
 }
-
-# =============================================================================
-# V3.0 DR 배포 후 확인용 정보
-# =============================================================================
-output "instructions" {
-  description = "다음 단계 안내"
-  value       = <<-EOT
-    
-    ============================================================
-    도쿄 DR 리전 인프라 (V3.0 Pilot Light) 배포 완료!
-    ============================================================
-    
-    현재 상태: App ASG desired=${var.app_asg_desired} (Pilot Light)
-    
-    1. DR 활성화 시:
-       terraform apply -var="app_asg_desired=2"
-    
-    2. ALB DNS로 API 헬스체크:
-       https://${aws_lb.dr.dns_name}/api/health
-    
-    3. S3 정적 호스팅 DR:
-       - S3 CRR로 서울 → 도쿄 자동 복제
-    
-    ============================================================
-    PLCR Naming: ${var.project_name}-*-${var.region_code}
-    ============================================================
-  EOT
-}
