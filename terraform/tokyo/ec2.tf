@@ -54,6 +54,15 @@ resource "aws_autoscaling_group" "app" {
   health_check_type   = "ELB"
   health_check_grace_period = 600
 
+  instance_refresh {
+    strategy = "Rolling"
+    preferences {
+      min_healthy_percentage = 50
+      instance_warmup        = 300
+    }
+    triggers = ["launch_template"]
+  }
+
   launch_template {
     id      = aws_launch_template.app.id
     version = "$Latest"
