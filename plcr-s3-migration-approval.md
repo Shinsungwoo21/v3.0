@@ -91,6 +91,12 @@ main 브랜치 유지
 | CloudFront | `cfront` | `plcr-cfront-an2` |
 | ALB | `alb` | `plcr-alb-an2` |
 | Lambda | `lambda` | `plcr-lambda-cors-an2` |
+| DynamoDB Global Table | `gtbl` | `plcr-gtbl-performances` |
+| DynamoDB Table (일반) | `tbl` | `plcr-tbl-sessions-an2` |
+
+> **📌 DynamoDB 네이밍 차이점**
+> - **Global Table (`gtbl`)**: 서울↔도쿄 복제되므로 리전 코드 **생략**
+> - **일반 Table (`tbl`)**: 특정 리전에만 존재하므로 리전 코드 **포함**
 
 ---
 

@@ -127,7 +127,7 @@ variable "app_asg_desired" {
 variable "dynamodb_table_prefix" {
   description = "DynamoDB 테이블 접두사 (IAM 정책용)"
   type        = string
-  default     = "KDT-Msp4-PLDR"
+  default     = "plcr-gtbl"
 }
 
 # -----------------------------------------------------------------------------

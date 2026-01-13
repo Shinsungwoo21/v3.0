@@ -29,7 +29,7 @@ app_asg_max     = 1
 app_asg_desired = 1
 
 # DynamoDB (참조용 - Global Table은 서울에서 관리)
-dynamodb_table_prefix = "KDT-Msp4-PLDR"
+dynamodb_table_prefix = "plcr-gtbl"
 
 # 도메인
 domain_name = "megaticket.click"
