@@ -12,10 +12,10 @@ export const dynamoDb = DynamoDBDocumentClient.from(client, {
     },
 });
 
-export const RESERVATIONS_TABLE = process.env.DYNAMODB_RESERVATIONS_TABLE || "KDT-Msp4-PLDR-reservations";
-export const PERFORMANCES_TABLE = process.env.DYNAMODB_PERFORMANCES_TABLE || "KDT-Msp4-PLDR-performances";
-export const VENUES_TABLE = process.env.DYNAMODB_VENUES_TABLE || "KDT-Msp4-PLDR-venues";
-export const SCHEDULES_TABLE = process.env.DYNAMODB_SCHEDULES_TABLE || "KDT-Msp4-PLDR-schedules";
+export const RESERVATIONS_TABLE = process.env.DYNAMODB_RESERVATIONS_TABLE || "plcr-gtbl-reservations";
+export const PERFORMANCES_TABLE = process.env.DYNAMODB_PERFORMANCES_TABLE || "plcr-gtbl-performances";
+export const VENUES_TABLE = process.env.DYNAMODB_VENUES_TABLE || "plcr-gtbl-venues";
+export const SCHEDULES_TABLE = process.env.DYNAMODB_SCHEDULES_TABLE || "plcr-gtbl-schedules";
 
 // 키 생성 헬퍼
 export function createPK(performanceId: string, date: string, time: string): string {
