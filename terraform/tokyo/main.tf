@@ -218,7 +218,7 @@ resource "aws_lb_target_group" "app" {
   name     = "${var.project_name}-tg-app-${var.region_code}"
   port     = 3001
   protocol = "HTTP"
-  vpc_id   = aws_vpc.main.id
+  vpc_id   = aws_vpc.dr.id
 
   health_check {
     path                = "/api/health"
