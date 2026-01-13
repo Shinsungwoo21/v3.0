@@ -1,7 +1,7 @@
 # =============================================================================
 # EC2 Instances with Auto Scaling - Tokyo DR Region (V3.0)
 # =============================================================================
-# Web: S3 정적 호스팅으로 이전 (EC2 제거)
+# Web: S3 정적 호스팅으로 이전
 # App: ASG + ALB Target Group 연결 (Pilot Light: desired=0)
 # Golden AMI 사용 (빌드 스킵) - 서울에서 복사된 AMI
 # =============================================================================
@@ -45,30 +45,23 @@ resource "aws_launch_template" "app" {
 # Auto Scaling Group - App (Private Subnet, Pilot Light)
 # -----------------------------------------------------------------------------
 resource "aws_autoscaling_group" "app" {
-  name                = "${var.project_name}-asg-app-${var.region_code}"
+  name                = "${var.project_name}-asg-${var.region_code}-app"
   min_size            = var.app_asg_min
   max_size            = var.app_asg_max
   desired_capacity    = var.app_asg_desired
   vpc_zone_identifier = [aws_subnet.private_a.id, aws_subnet.private_c.id]
   target_group_arns   = []
   health_check_type   = "ELB"
-  health_check_grace_period = 300
+  health_check_grace_period = 600
 
   launch_template {
     id      = aws_launch_template.app.id
     version = "$Latest"
   }
 
-  tag {
-    key                 = "Name"
-    value               = "${var.project_name}-app-${var.region_code}"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Tier"
-    value               = "app"
-    propagate_at_launch = true
+  tags = {
+    Name = "${var.project_name}-app-${var.region_code}"
+    Tier = "app"
   }
 
   lifecycle {

@@ -14,7 +14,7 @@
 #    type = "SECONDARY"
 #  }
 #
-#  set_identifier = "plcr-api-secondary-${var.region_code}"
+#  set_identifier = "${var.project_name}-api-${var.region_code}-secondary"
 #
 #  alias {
 #    name                   = aws_lb.dr.dns_name

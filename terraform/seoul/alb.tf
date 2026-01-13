@@ -39,7 +39,7 @@ resource "aws_lb_target_group" "app" {
   }
 
   tags = {
-    Name = "${var.project_name}-tg-app-${var.region_code}"
+    Name = "${var.project_name}-tg-${var.region_code}-app"
     Tier = "app"
   }
 }

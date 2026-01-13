@@ -43,10 +43,10 @@ resource "aws_launch_template" "app" {
 
 # -----------------------------------------------------------------------------
 # Auto Scaling Group - App (Private Subnet)
-# ALB Target Group 연결 (NLB 제거됨)
+# ALB Target Group 연결
 # -----------------------------------------------------------------------------
 resource "aws_autoscaling_group" "app" {
-  name                = "${var.project_name}-asg-app-${var.region_code}"
+  name                = "${var.project_name}-asg-${var.region_code}-app"
   min_size            = var.app_asg_min
   max_size            = var.app_asg_max
   desired_capacity    = var.app_asg_desired
@@ -60,16 +60,9 @@ resource "aws_autoscaling_group" "app" {
     version = "$Latest"
   }
 
-  tag {
-    key                 = "Name"
-    value               = "${var.project_name}-app-${var.region_code}"
-    propagate_at_launch = true
-  }
-
-  tag {
-    key                 = "Tier"
-    value               = "app"
-    propagate_at_launch = true
+  tags = {
+    Name = "${var.project_name}-app-${var.region_code}"
+    Tier = "app"
   }
 
   lifecycle {

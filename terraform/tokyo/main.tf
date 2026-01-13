@@ -1,7 +1,7 @@
 # =============================================================================
 # PLCR Infrastructure - Tokyo DR Region (V3.0)
 # =============================================================================
-# Web: S3 정적 호스팅 (Terraform 외부)
+# Web: S3 정적 호스팅
 # App: EC2 ASG + ALB (Pilot Light: desired=0)
 # =============================================================================
 
@@ -69,7 +69,7 @@ resource "aws_subnet" "public_a" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-sbn-pub-${var.region_code}-a"
+    Name = "${var.project_name}-sbn-${var.region_code}-a-pub"
     Tier = "pub"
   }
 }
@@ -81,7 +81,7 @@ resource "aws_subnet" "public_c" {
   map_public_ip_on_launch = true
 
   tags = {
-    Name = "${var.project_name}-sbn-pub-${var.region_code}-c"
+    Name = "${var.project_name}-sbn-${var.region_code}-c-pub"
     Tier = "pub"
   }
 }
@@ -95,7 +95,7 @@ resource "aws_subnet" "private_a" {
   availability_zone = "${var.aws_region}a"
 
   tags = {
-    Name = "${var.project_name}-sbn-pri-${var.region_code}-a"
+    Name = "${var.project_name}-sbn-${var.region_code}-a-pri"
     Tier = "pri"
   }
 }
@@ -106,7 +106,7 @@ resource "aws_subnet" "private_c" {
   availability_zone = "${var.aws_region}c"
 
   tags = {
-    Name = "${var.project_name}-sbn-pri-${var.region_code}-c"
+    Name = "${var.project_name}-sbn-${var.region_code}-c-pri"
     Tier = "pri"
   }
 }
@@ -123,7 +123,8 @@ resource "aws_route_table" "public" {
   }
 
   tags = {
-    Name = "${var.project_name}-rt-pub-${var.region_code}"
+    Name = "${var.project_name}-rt-${var.region_code}-pub"
+    Tier = "pub"
   }
 }
 
@@ -137,7 +138,8 @@ resource "aws_route_table" "private" {
   }
 
   tags = {
-    Name = "${var.project_name}-rt-pri-${var.region_code}"
+    Name = "${var.project_name}-rt-${var.region_code}-pri"
+    Tier = "pri"
   }
 }
 
@@ -172,6 +174,6 @@ resource "aws_vpc_endpoint" "dynamodb" {
   route_table_ids   = [aws_route_table.private.id]
 
   tags = {
-    Name = "${var.project_name}-vpce-ddb-${var.region_code}"
+    Name = "${var.project_name}-vpce-${var.region_code}-gtbl"
   }
 }
