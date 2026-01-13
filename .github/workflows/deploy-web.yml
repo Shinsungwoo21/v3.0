@@ -6,6 +6,7 @@ on:
       - feature/singapore-sydney-deployment
     paths:
       - 'apps/web/**'
+      - '.github/workflows/deploy-web.yml'
   workflow_dispatch:  # 수동 실행 가능
 
 # OIDC 사용을 위한 권한 설정
