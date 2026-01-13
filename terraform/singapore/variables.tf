@@ -1,5 +1,5 @@
 # =============================================================================
-# Variables - Seoul Main Region (V3.0 PLCR)
+# Variables - Singapore Main Region (V3.0 PLCR)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -12,9 +12,9 @@ variable "project_name" {
 }
 
 variable "region_code" {
-  description = "리전 코드 (an2=서울, an1=도쿄)"
+  description = "리전 코드 (apse1=싱가포르, apse2=시드니)"
   type        = string
-  default     = "an2"
+  default     = "apse1"
 }
 
 variable "environment" {
@@ -24,9 +24,9 @@ variable "environment" {
 }
 
 variable "aws_region" {
-  description = "AWS 리전"
+  description = "AWS 리전 (싱가포르)"
   type        = string
-  default     = "ap-northeast-2"
+  default     = "ap-southeast-1"
 }
 
 variable "aws_profile" {

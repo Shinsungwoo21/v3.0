@@ -1,5 +1,5 @@
 # =============================================================================
-# Variables - Tokyo DR Region (V3.0 PLCR)
+# Variables - Sydney DR Region (V3.0 PLCR)
 # =============================================================================
 
 # -----------------------------------------------------------------------------
@@ -12,9 +12,9 @@ variable "project_name" {
 }
 
 variable "region_code" {
-  description = "리전 코드 (an2=서울, an1=도쿄)"
+  description = "리전 코드 (apse1=싱가포르, apse2=시드니)"
   type        = string
-  default     = "an1"
+  default     = "apse2"
 }
 
 variable "environment" {
@@ -24,9 +24,9 @@ variable "environment" {
 }
 
 variable "aws_region" {
-  description = "AWS 리전 (도쿄)"
+  description = "AWS 리전 (시드니)"
   type        = string
-  default     = "ap-northeast-1"
+  default     = "ap-southeast-2"
 }
 
 variable "aws_profile" {
