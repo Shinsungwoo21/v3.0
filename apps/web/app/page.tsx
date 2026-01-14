@@ -16,11 +16,11 @@ export default function Home() {
     { title: "위키드", category: "뮤지컬", price: "160,000원", badge: "NEW" },
   ]
 
-  const activities = [
-    { title: "모나용평 팡팡 유니버스", category: "테마파크", discount: "", price: "20,000원", badge: "HOT" },
-    { title: "코코컬쳐클럽 일출 페스티벌", category: "관광/입장권", discount: "50%", price: "15,000원", badge: "NEW" },
-    { title: "하이원 스키캠프", category: "레저/스포츠", discount: "", price: "5,000원", badge: "" },
-    { title: "아쿠아플라넷(일산)", category: "테마파크", discount: "", price: "6,000원", badge: "" },
+  const plays = [
+    { id: "perf-liar", title: "라이어", category: "연극", price: "50,000원", badge: "HOT", poster: "/posters/liar.png" },
+    { id: "perf-rooftop-cat", title: "옥탑방 고양이", category: "연극", price: "50,000원", badge: "NEW", poster: "/posters/rooftop-cat.png" },
+    { id: "perf-let-me-in", title: "렛미인", category: "연극", price: "50,000원", badge: "", poster: "/posters/let-me-in.png" },
+    { id: "perf-line2-tenant", title: "2호선세입자", category: "연극", price: "50,000원", badge: "", poster: "/posters/line2-tenant.png" },
   ]
 
   const exhibitions = [
@@ -57,14 +57,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* Section: Activities */}
+        {/* Section: Plays */}
         <section className="space-y-6">
           <div className="flex items-center justify-between">
-            <h2 className="text-3xl font-bold tracking-tight text-gray-900">🎡 액티비티</h2>
+            <h2 className="text-3xl font-bold tracking-tight text-gray-900">🎬 연극</h2>
             <Button variant="ghost" className="text-muted-foreground hover:text-primary">더보기 &gt;</Button>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {activities.map((item, idx) => (
+            {plays.map((item, idx) => (
               <SimpleCard key={idx} item={item} />
             ))}
           </div>

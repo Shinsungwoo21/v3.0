@@ -181,7 +181,16 @@ export default function PerformanceDetailClient() {
                                             <div className="bg-gray-50 p-3 rounded-lg space-y-2 text-sm text-gray-700">
                                                 {/* seatGrades가 있으면 사용, 없으면 price 문자열 파싱 */}
                                                 {(performance as any).seatGrades && (performance as any).seatGrades.length > 0 ? (
-                                                    (performance as any).seatGrades.map((gradeInfo: any, idx: number) => {
+                                                    // [Fix] 좌석 등급 정렬: OP -> VIP -> R -> S -> A
+                                                    [...(performance as any).seatGrades].sort((a: any, b: any) => {
+                                                        const order = ['OP', 'VIP', 'R', 'S', 'A'];
+                                                        const indexA = order.indexOf(a.grade);
+                                                        const indexB = order.indexOf(b.grade);
+                                                        // 순서 목록에 없는 경우 맨 뒤로
+                                                        const valA = indexA === -1 ? 999 : indexA;
+                                                        const valB = indexB === -1 ? 999 : indexB;
+                                                        return valA - valB;
+                                                    }).map((gradeInfo: any, idx: number) => {
                                                         // seatColors에서 색상 가져오기, 없으면 gradeInfo.color 사용
                                                         const gradeColor = ((performance as any).seatColors && (performance as any).seatColors[gradeInfo.grade]) || gradeInfo.color || '#888888';
                                                         return (
