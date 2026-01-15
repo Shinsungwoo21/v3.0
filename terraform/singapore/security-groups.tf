@@ -1,9 +1,7 @@
 # =============================================================================
 # Security Groups - Singapore Main Region (V3.0)
 # =============================================================================
-data "aws_ec2_managed_prefix_list" "cloudfront" {
-  name = "com.amazonaws.global.cloudfront.origin-facing"
-}
+# CloudFront prefix list 제거 (규칙 수 제한 초과로 인해 0.0.0.0/0 사용)
 
 data "aws_prefix_list" "s3" {
   prefix_list_id = aws_vpc_endpoint.s3.prefix_list_id
@@ -44,21 +42,21 @@ resource "aws_security_group" "vpce" {
 # Security Group Rules
 # --------------------------------------------------------------------------------
 # ALB Rules
-resource "aws_security_group_rule" "alb_ingress_http_cloudfront" {
+resource "aws_security_group_rule" "alb_ingress_http" {
   type              = "ingress"
   from_port         = 80
   to_port           = 80
   protocol          = "tcp"
-  prefix_list_ids   = [data.aws_ec2_managed_prefix_list.cloudfront.id]
+  cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.alb.id
 }
 
-resource "aws_security_group_rule" "alb_ingress_https_cloudfront" {
+resource "aws_security_group_rule" "alb_ingress_https" {
   type              = "ingress"
   from_port         = 443
   to_port           = 443
   protocol          = "tcp"
-  prefix_list_ids   = [data.aws_ec2_managed_prefix_list.cloudfront.id]
+  cidr_blocks       = ["0.0.0.0/0"]
   security_group_id = aws_security_group.alb.id
 }
 
