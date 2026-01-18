@@ -47,6 +47,14 @@ phases:
       - cp scripts/start_application.sh deploy/scripts/
       - cp scripts/validate_service.sh deploy/scripts/
       - echo "Artifacts prepared"
+      # =============================================================================
+      # DR용 고정 경로에 아티팩트 복사 (CRR로 시드니에 복제됨)
+      # =============================================================================
+      - echo "Copying artifact to latest/ for DR..."
+      - cd deploy && zip -r ../app-latest.zip . && cd ..
+      - aws s3 cp app-latest.zip s3://codepipeline-ap-southeast-1-artifacts/latest/app.zip --region ap-southeast-1 || true
+      - rm -f app-latest.zip
+      - echo "DR artifact copy completed"
 
 artifacts:
   files:
