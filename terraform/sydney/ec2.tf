@@ -35,7 +35,7 @@ data "aws_ami" "amazon_linux_2023" {
 # -----------------------------------------------------------------------------
 resource "aws_launch_template" "app" {
   name_prefix   = "${var.project_name}-lt-${var.region_code}-app-"
-  image_id      = data.aws_ami.amazon_linux_2023.id
+  image_id      = var.golden_ami_id != "" ? var.golden_ami_id : data.aws_ami.amazon_linux_2023.id
   instance_type = var.instance_type
 
   iam_instance_profile {
@@ -48,8 +48,8 @@ resource "aws_launch_template" "app" {
   user_data = base64encode(templatefile("${path.module}/user_data_app.sh", {
     aws_region            = var.aws_region
     dynamodb_table_prefix = var.dynamodb_table_prefix
-    artifact_bucket       = var.artifact_bucket
-    artifact_key          = var.artifact_key
+    # artifact_bucket       = var.artifact_bucket  # heredoc 내부에서 하드코딩됨
+    # artifact_key          = var.artifact_key     # 사용 안 함
   }))
 
   tag_specifications {

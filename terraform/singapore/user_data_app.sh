@@ -15,17 +15,9 @@ echo "=== User Data Script Started: $(date) ==="
 # 사용자 설정 (ec2-user로 실행)
 USER_HOME=/home/ec2-user
 
-# 1. Git 설치 (Amazon Linux 2023)
-echo "=== Installing Git ==="
-dnf install git -y
-
-# 2. Ruby 설치 (CodeDeploy Agent 의존성)
-echo "=== Installing Ruby ==="
-dnf install ruby -y
-
-# 3. wget 설치
-echo "=== Installing wget ==="
-dnf install wget -y
+# 1. 필수 패키지 설치 (Amazon Linux 2023)
+echo "=== Installing Required Packages ==="
+dnf install git ruby wget unzip -y
 
 # 4. ec2-user 홈 디렉토리 권한 확인
 chown ec2-user:ec2-user $USER_HOME

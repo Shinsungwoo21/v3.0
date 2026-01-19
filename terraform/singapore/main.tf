@@ -210,6 +210,7 @@ resource "aws_vpc_endpoint" "s3" {
         Principal = "*" 
         Action    = [
           "s3:GetObject",
+          "s3:GetObjectVersion",
           "s3:PutObject",
           "s3:ListBucket"
         ]
