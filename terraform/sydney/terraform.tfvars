@@ -17,7 +17,8 @@ private_subnet_a_cidr = "10.2.0.64/26"  # 10.2.0.64 ~ 10.2.0.127
 private_subnet_b_cidr = "10.2.0.128/26" # 10.2.0.128 ~ 10.2.0.191
 # 여유 CIDR (확장용 Reserved): 10.2.0.192/26 (10.2.0.192 ~ 10.2.0.255)
 
-# EC2 - AMI는 data source로 자동 조회
+# EC2 - Golden AMI (AWS Backup으로 싱가폴에서 복사)
+golden_ami_id = "ami-04cf42b3b34bd97b6"
 instance_type = "t2.medium"
 
 # Auto Scaling (Pilot Light - 평시 0, DR 시 scale up)

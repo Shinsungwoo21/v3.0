@@ -54,8 +54,14 @@ variable "private_subnet_b_cidr" {
 }
 
 # -----------------------------------------------------------------------------
-# EC2 - AMI 자동 조회
+# EC2 - AMI 설정
 # -----------------------------------------------------------------------------
+variable "golden_ami_id" {
+  type        = string
+  description = "Golden AMI ID (빈 값이면 Amazon Linux 2023 자동 조회)"
+  default     = ""
+}
+
 variable "instance_type" {
   type    = string
   default = "t2.medium"
