@@ -18,8 +18,8 @@ permissions:
 env:
   AWS_REGION: ap-northeast-2
   S3_BUCKET: plcr-s3-an2-app-artifacts
-  CODEDEPLOY_APP: plcr-app-seoul
-  CODEDEPLOY_DG: plcr-app-seoul-dg
+  CODEDEPLOY_APP: plcr-codedeploy-an2-app
+  CODEDEPLOY_DG: plcr-dg-an2-app
 
 jobs:
   build-and-deploy:
