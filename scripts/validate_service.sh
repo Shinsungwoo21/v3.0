@@ -1,23 +1,35 @@
 #!/bin/bash
-# 배포 후 서비스 Health Check
+# =============================================================================
+# Validate Service Script (CodeDeploy - ValidateService Hook)
+# =============================================================================
 
-echo "Validating service health..."
+set -e
 
-# 앱이 시작될 시간 대기
-sleep 60
+echo "=== Validating Service: $(date) ==="
 
-# Health Check API 호출
-HEALTH_CHECK_URL="http://localhost:3001/api/health"
+# 환경변수 로드
+source /home/ec2-user/app-env.sh 2>/dev/null || true
 
-echo "Checking health endpoint: $HEALTH_CHECK_URL"
+PORT=${PORT:-3001}
+MAX_RETRIES=10
+RETRY_INTERVAL=3
 
-HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" $HEALTH_CHECK_URL)
+echo "Checking health endpoint on port $PORT..."
 
-if [ "$HTTP_CODE" == "200" ]; then
-  echo "✅ Health check passed! (HTTP $HTTP_CODE)"
-  exit 0
-else
-  echo "❌ Health check failed! (HTTP $HTTP_CODE)"
-  echo "Rolling back deployment..."
-  exit 1
-fi
+for i in $(seq 1 $MAX_RETRIES); do
+    echo "Attempt $i of $MAX_RETRIES..."
+    
+    HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:$PORT/api/health 2>/dev/null || echo "000")
+    
+    if [ "$HTTP_CODE" = "200" ]; then
+        echo "✅ Health check passed! HTTP $HTTP_CODE"
+        echo "=== Service Validated: $(date) ==="
+        exit 0
+    fi
+    
+    echo "Health check returned HTTP $HTTP_CODE, retrying in $RETRY_INTERVAL seconds..."
+    sleep $RETRY_INTERVAL
+done
+
+echo "❌ Health check failed after $MAX_RETRIES attempts"
+exit 1
