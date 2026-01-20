@@ -1,12 +1,27 @@
 #!/bin/bash
-# 기존 App 서비스 중지
+# =============================================================================
+# Stop Application Script (CodeDeploy - ApplicationStop Hook)
+# =============================================================================
 
-echo "Stopping existing application..."
+set -e
 
-# PM2로 실행 중인 앱 중지
-pm2 stop app 2>/dev/null || echo "No running app found"
+echo "=== Stopping Application: $(date) ==="
 
-# 포트 3001 사용 중인 프로세스 종료
-lsof -ti:3001 | xargs kill -9 2>/dev/null || echo "Port 3001 is free"
+# 환경변수 로드
+source /home/ec2-user/app-env.sh 2>/dev/null || true
+source /home/ec2-user/.bashrc 2>/dev/null || true
+export NVM_DIR="/home/ec2-user/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-echo "Application stopped successfully"
+# PM2로 앱 중지
+if command -v pm2 &> /dev/null; then
+    echo "Stopping PM2 processes..."
+    pm2 stop all 2>/dev/null || true
+    pm2 delete all 2>/dev/null || true
+    echo "PM2 processes stopped."
+else
+    echo "PM2 not found, skipping..."
+fi
+
+echo "=== Application Stopped: $(date) ==="
+exit 0
