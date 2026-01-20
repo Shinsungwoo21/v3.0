@@ -1,0 +1,117 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ReadOnlyAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:Describe*",
+                "s3:List*",
+                "s3:Get*",
+                "dynamodb:Describe*",
+                "dynamodb:List*",
+                "lambda:List*",
+                "lambda:Get*",
+                "states:Describe*",
+                "states:List*",
+                "events:Describe*",
+                "events:List*",
+                "cloudwatch:*",
+                "logs:*",
+                "cloudtrail:LookupEvents",
+                "cloudtrail:GetEventSelectors",
+                "route53:Get*",
+                "route53:List*",
+                "autoscaling:Describe*",
+                "elasticloadbalancing:Describe*",
+                "guardduty:Get*",
+                "guardduty:List*",
+                "ce:GetCostAndUsage",
+                "ce:GetCostForecast"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "WriteAccess",
+            "Effect": "Allow",
+            "Action": [
+                "lambda:UpdateFunctionCode",
+                "lambda:UpdateFunctionConfiguration",
+                "lambda:PublishVersion",
+                "lambda:CreateAlias",
+                "lambda:UpdateAlias",
+                "lambda:InvokeFunction",
+                "states:StartExecution",
+                "states:StopExecution",
+                "events:PutRule",
+                "events:EnableRule",
+                "events:DisableRule",
+                "events:PutTargets",
+                "autoscaling:UpdateAutoScalingGroup",
+                "autoscaling:SetDesiredCapacity",
+                "ec2:StartInstances",
+                "ec2:StopInstances",
+                "ec2:RebootInstances",
+                "ec2:CreateTags",
+                "ec2:AuthorizeSecurityGroupIngress",
+                "ec2:AuthorizeSecurityGroupEgress",
+                "ec2:RevokeSecurityGroupEgress",
+                "ec2:*NetworkAcl*",
+                "elasticloadbalancing:ModifyLoadBalancerAttributes",
+                "elasticloadbalancing:ModifyTargetGroup",
+                "elasticloadbalancing:ModifyTargetGroupAttributes",
+                "route53:ChangeResourceRecordSets",
+                "s3:PutObject",
+                "s3:PutObjectAcl",
+                "s3:DeleteObject",
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem",
+                "dynamodb:DeleteItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:UpdateTable"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "PassRoleRestricted",
+            "Effect": "Allow",
+            "Action": "iam:PassRole",
+            "Resource": "arn:aws:iam::*:role/plcr-*",
+            "Condition": {
+                "StringEquals": {
+                    "iam:PassedToService": [
+                        "lambda.amazonaws.com",
+                        "ec2.amazonaws.com",
+                        "states.amazonaws.com",
+                        "events.amazonaws.com"
+                    ]
+                }
+            }
+        },
+        {
+            "Sid": "DenyDangerousActions",
+            "Effect": "Deny",
+            "Action": [
+                "iam:CreateUser",
+                "iam:DeleteUser",
+                "iam:CreateRole",
+                "iam:DeleteRole",
+                "iam:CreatePolicy",
+                "iam:DeletePolicy",
+                "iam:PutUserPolicy",
+                "iam:PutRolePolicy",
+                "iam:AttachUserPolicy",
+                "iam:AttachRolePolicy",
+                "s3:DeleteBucket",
+                "s3:DeleteBucketPolicy",
+                "dynamodb:DeleteTable",
+                "ec2:TerminateInstances",
+                "ec2:RevokeSecurityGroupIngress",
+                "rds:DeleteDBInstance",
+                "rds:DeleteDBCluster"
+            ],
+            "Resource": "*"
+        }
+    ]
+}

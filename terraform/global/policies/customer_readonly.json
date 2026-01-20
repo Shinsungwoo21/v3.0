@@ -1,0 +1,63 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "ReadOnlyAccess",
+            "Effect": "Allow",
+            "Action": [
+                "ec2:Describe*",
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketLocation",
+                "s3:GetBucketVersioning",
+                "s3:GetBucketPolicy",
+                "dynamodb:DescribeTable",
+                "dynamodb:ListTables",
+                "dynamodb:DescribeGlobalTable",
+                "lambda:ListFunctions",
+                "lambda:GetFunction",
+                "lambda:GetFunctionConfiguration",
+                "states:ListStateMachines",
+                "states:DescribeStateMachine",
+                "cloudwatch:Describe*",
+                "cloudwatch:Get*",
+                "cloudwatch:List*",
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "route53:Get*",
+                "route53:List*",
+                "autoscaling:Describe*",
+                "elasticloadbalancing:Describe*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "BillingReadOnly",
+            "Effect": "Allow",
+            "Action": [
+                "ce:GetCostAndUsage",
+                "ce:GetCostForecast",
+                "ce:GetDimensionValues",
+                "budgets:ViewBudget",
+                "budgets:DescribeBudgets"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Sid": "DenyDataAccess",
+            "Effect": "Deny",
+            "Action": [
+                "s3:GetObject",
+                "dynamodb:GetItem",
+                "dynamodb:Query",
+                "dynamodb:Scan",
+                "dynamodb:BatchGetItem",
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents",
+                "secretsmanager:GetSecretValue",
+                "ssm:GetParameter",
+                "ssm:GetParameters"
+            ],
+            "Resource": "*"
+        }
+    ]
+}
