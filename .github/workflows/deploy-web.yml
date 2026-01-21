@@ -1,0 +1,61 @@
+name: Deploy Web to S3 + CloudFront
+
+on:
+  push:
+    branches:
+      - githubcicd # githubcicd 브랜치 푸시 시 실행
+    paths:
+      - 'apps/web/**'
+      - '.github/workflows/deploy-web.yml'
+  workflow_dispatch:  # 수동 실행 가능
+
+# OIDC 사용을 위한 권한 설정
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy-web:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Build Web (Static Export)
+        run: npm run build:web
+        env:
+          NODE_ENV: production
+      
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ap-northeast-2
+      
+      - name: Upload to S3 Seoul
+        run: |
+          aws s3 sync apps/web/out/ s3://plcr-s3-web-an2/ --delete
+      
+      - name: Invalidate CloudFront Cache
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id E2R4D3647K4SKR \
+            --paths "/*"
+      
+      - name: Deployment Summary
+        run: |
+          echo "✅ Deployment completed!"
+          echo "📦 Bucket: s3://plcr-s3-web-an2/"
+          echo "🌐 Region: ap-northeast-2 (Seoul)"
+          echo "🔄 CloudFront: Cache invalidated"
+          echo "🔄 CRR: Will replicate to plcr-s3-web-an1 (Tokyo DR)"
