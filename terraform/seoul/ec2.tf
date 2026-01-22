@@ -27,7 +27,7 @@ resource "aws_launch_template" "app" {
     tags = {
       Name   = "${var.project_name}-app-${var.region_code}"
       Tier   = "app"
-      Backup = "true"
+      BackupFrequency = "monthly"
     }
   }
 
