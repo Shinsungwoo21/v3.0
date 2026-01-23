@@ -5,11 +5,20 @@ const dynamodb = new DynamoDBClient({ region: process.env.AWS_REGION });
 
 export async function GET() {
     try {
-        // 실제 존재하는 테이블명을 사용하여 DB 연결 확인
-        const tableName = "plcr-gtbl-performances";
-        await dynamodb.send(new DescribeTableCommand({
-            TableName: tableName
-        }));
+        // 서비스 운영에 필요한 모든 주요 테이블의 연결 상태 전수 점검
+        const tables = [
+            "plcr-gtbl-users",
+            "plcr-gtbl-performances",
+            "plcr-gtbl-reservations",
+            "plcr-gtbl-schedules",
+            "plcr-gtbl-venues"
+        ];
+
+        for (const tableName of tables) {
+            await dynamodb.send(new DescribeTableCommand({
+                TableName: tableName
+            }));
+        }
 
         return NextResponse.json({
             status: 'healthy',
