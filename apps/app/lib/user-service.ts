@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || "ap-northeast-2" });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TABLE_NAME = "plcr-tbl-an2-users"; // 사용자 테이블 이름 가정 (terraform/dynamodb 확인 필요하지만 일단 표준 명명 규칙 따름)
+const TABLE_NAME = "plcr-gtbl-users";
 
 export async function createUser(data: any) {
     const { email, password, name } = data;
@@ -32,7 +32,7 @@ export async function createUser(data: any) {
     };
 
     await docClient.send(new PutCommand({
-        TableName: "plcr-tbl-an2-users", // 실제 테이블명 확인 필요. 일단 하드코딩나중에 환경변수나 config로 빼는게 좋음
+        TableName: TABLE_NAME,
         Item: user
     }));
 
@@ -41,7 +41,7 @@ export async function createUser(data: any) {
 
 export async function getUserByEmail(email: string) {
     const command = new GetCommand({
-        TableName: "plcr-tbl-an2-users",
+        TableName: TABLE_NAME,
         Key: {
             pk: `USER#${email}`,
             sk: `PROFILE`,
