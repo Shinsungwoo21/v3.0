@@ -6,7 +6,7 @@ import jwt from "jsonwebtoken";
 const client = new DynamoDBClient({ region: process.env.AWS_REGION || "ap-northeast-2" });
 const docClient = DynamoDBDocumentClient.from(client);
 
-const TABLE_NAME = "plcr-gtbl-users";
+const TABLE_NAME = "plcr-gtbl-users"; // v2: Corrected table name based on infra scan
 
 export async function createUser(data: any) {
     const { email, password, name } = data;
