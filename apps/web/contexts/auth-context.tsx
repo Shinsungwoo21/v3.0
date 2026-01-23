@@ -92,21 +92,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const login = async (email: string, password: string) => {
         try {
-            const user = await mockAuthService.login(email, password)
-            setUser(user)
-            localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user))
+            const config = (window as any).__PLCR_CONFIG__;
+            if (config?.AUTH_PROVIDER !== 'mock') {
+                // Real API
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password }),
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || '로그인 실패');
+                setUser(result.user);
+                // 토큰 저장 로직 등은 생략하거나 필요한 경우 추가
+                if (result.token) localStorage.setItem('auth-token', result.token);
+                // 유저 정보 저장 (새로고침 유지용)
+                localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(result.user));
+            } else {
+                // Mock
+                const user = await mockAuthService.login(email, password);
+                setUser(user);
+                localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user));
+            }
         } catch (error) {
-            throw error
+            throw error;
         }
     }
 
     const signup = async (email: string, password: string, name: string) => {
         try {
-            const user = await mockAuthService.signup(email, password, name)
-            setUser(user)
-            localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user))
+            const config = (window as any).__PLCR_CONFIG__;
+            if (config?.AUTH_PROVIDER !== 'mock') {
+                // Real API
+                const res = await fetch('/api/auth/signup', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password, name }),
+                });
+                const result = await res.json();
+                if (!res.ok) throw new Error(result.error || '회원가입 실패');
+
+                // 가입 후 자동 로그인 처리 or 로그인 페이지 이동
+                // 여기서는 로그인 페이지 이동 유도를 위해 아무것도 안 함 (호출측에서 처리)
+            } else {
+                // Mock
+                const user = await mockAuthService.signup(email, password, name);
+                setUser(user);
+                localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user));
+            }
         } catch (error) {
-            throw error
+            throw error;
         }
     }
 
