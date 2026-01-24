@@ -5,6 +5,6 @@ window.__PLCR_CONFIG__ = {
   AWS_REGION: "ap-northeast-2",
   PROJECT: "plcr",
   ENVIRONMENT: "prod",
-  AUTH_ENABLED: false,
-  AUTH_PROVIDER: "mock"
+  AUTH_ENABLED: true,
+  AUTH_PROVIDER: "real"
 };
