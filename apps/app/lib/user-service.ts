@@ -12,28 +12,33 @@ const TABLE_NAME = process.env.DYNAMODB_TABLE_USERS || "plcr-gtbl-users";
 export async function createUser(data: any) {
     const { email, password, name } = data;
 
-    // 1. 중복 확인
-    const existing = await getUserByEmail(email);
-    if (existing) {
-        throw new Error("User already exists");
-    }
-
-    // 2. 비밀번호 해싱 (클라우드 호환성을 위해 bcryptjs 사용)
+    // 비밀번호 해싱
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // 3. 저장
     const user = {
-        email, // PK
+        email,
         password: hashedPassword,
         name,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
     };
 
-    await docClient.send(new PutCommand({
-        TableName: TABLE_NAME,
-        Item: user
-    }));
+    // ⭐ 핵심 수정: ConditionExpression 추가로 Race Condition 해결
+    try {
+        await docClient.send(new PutCommand({
+            TableName: TABLE_NAME,
+            Item: user,
+            ConditionExpression: "attribute_not_exists(email)",
+        }));
+    } catch (error: any) {
+        // ConditionalCheckFailedException = 이미 존재하는 이메일
+        if (error.name === "ConditionalCheckFailedException") {
+            throw new Error("User already exists");
+        }
+        // 기타 에러
+        console.error("Error creating user:", error);
+        throw error;
+    }
 
     return { email, name };
 }
