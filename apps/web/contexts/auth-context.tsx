@@ -1,6 +1,17 @@
 "use client"
 
 import React, { createContext, useContext, useEffect, useState } from "react"
+import { Amplify } from "aws-amplify"
+import {
+    signIn,
+    signUp,
+    signOut,
+    getCurrentUser,
+    fetchUserAttributes,
+    confirmSignUp,
+    resendSignUpCode,
+    type SignUpOutput,
+} from "aws-amplify/auth"
 
 // --- Interfaces ---
 
@@ -10,139 +21,213 @@ export interface User {
     name: string
 }
 
-export interface AuthService {
-    login(email: string, password: string): Promise<User>
-    signup(email: string, password: string, name: string): Promise<User>
-    logout(): Promise<void>
-}
-
-// --- Mock Service Implementation ---
-
-const MOCK_USER_STORAGE_KEY = "megaticket-auth-user"
-
-export const mockAuthService: AuthService = {
-    async login(email, password): Promise<User> {
-        // Simulate API delay
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        throw new Error("Invalid credentials")
-    },
-
-    async signup(email, password, name): Promise<User> {
-        await new Promise((resolve) => setTimeout(resolve, 500))
-
-        const user: User = {
-            id: "mock-user-" + Math.random().toString(36).substr(2, 9),
-            email: email,
-            name: name,
-        }
-        return user
-    },
-
-    async logout(): Promise<void> {
-        await new Promise((resolve) => setTimeout(resolve, 200))
-    },
-}
-
 // --- Context & Provider ---
 
 interface AuthContextType {
     user: User | null
     isLoading: boolean
+    isEmailVerificationPending: boolean
     login: (email: string, password: string) => Promise<void>
     signup: (email: string, password: string, name: string) => Promise<void>
+    confirmEmail: (email: string, code: string) => Promise<void>
+    resendVerificationCode: (email: string) => Promise<void>
     logout: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+const USER_STORAGE_KEY = "megaticket-auth-user"
+
+function configureAmplify() {
+    if (typeof window === "undefined") return;
+
+    const config = (window as any).__PLCR_CONFIG__;
+    if (!config?.COGNITO_USER_POOL_ID || !config?.COGNITO_CLIENT_ID) {
+        console.warn("[Auth] Cognito config not found in window.__PLCR_CONFIG__");
+        return;
+    }
+
+    Amplify.configure({
+        Auth: {
+            Cognito: {
+                userPoolId: config.COGNITO_USER_POOL_ID,
+                userPoolClientId: config.COGNITO_CLIENT_ID,
+                signUpVerificationMethod: "code",
+            }
+        }
+    });
+
+    console.log("[Auth] Amplify configured with Cognito");
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [isLoading, setIsLoading] = useState(true)
+    const [isEmailVerificationPending, setIsEmailVerificationPending] = useState(false)
 
-    // Load user from localStorage on mount (Client-side only)
     useEffect(() => {
-        const loadUser = () => {
-            try {
-                const stored = localStorage.getItem(MOCK_USER_STORAGE_KEY)
-                if (stored) {
-                    setUser(JSON.parse(stored))
-                }
-            } catch (e) {
-                console.error("Failed to load user from storage", e)
-            } finally {
-                setIsLoading(false)
-            }
-        }
-        loadUser()
+        configureAmplify();
+        checkCurrentUser();
     }, [])
+
+    async function checkCurrentUser() {
+        try {
+            const currentUser = await getCurrentUser();
+            const attributes = await fetchUserAttributes();
+
+            const user: User = {
+                id: currentUser.userId,
+                email: attributes.email || "",
+                name: attributes.name || attributes.email || "",
+            };
+
+            setUser(user);
+            localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+        } catch (error) {
+            console.log("[Auth] No current user");
+            setUser(null);
+            localStorage.removeItem(USER_STORAGE_KEY);
+        } finally {
+            setIsLoading(false);
+        }
+    }
 
     const login = async (email: string, password: string) => {
         try {
-            const config = (window as any).__PLCR_CONFIG__;
-            if (config?.AUTH_PROVIDER !== 'mock') {
-                // Real API
-                const res = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password }),
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || '로그인 실패');
-                setUser(result.user);
-                // 토큰 저장 로직 등은 생략하거나 필요한 경우 추가
-                if (result.token) localStorage.setItem('auth-token', result.token);
-                // 유저 정보 저장 (새로고침 유지용)
-                localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(result.user));
+            setIsLoading(true);
+
+            const result = await signIn({
+                username: email,
+                password: password,
+            });
+
+            if (result.isSignedIn) {
+                await checkCurrentUser();
+            } else if (result.nextStep.signInStep === "CONFIRM_SIGN_UP") {
+                // 이메일 인증 필요
+                setIsEmailVerificationPending(true);
+                throw new Error("이메일 인증이 필요합니다. 인증 코드를 확인해주세요.");
             } else {
-                // Mock
-                const user = await mockAuthService.login(email, password);
-                setUser(user);
-                localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user));
+                throw new Error("로그인에 실패했습니다.");
             }
-        } catch (error) {
+        } catch (error: any) {
+            console.error("[Auth] Login error:", error);
+
+            // Cognito 에러 메시지 한국어 변환
+            if (error.name === "NotAuthorizedException") {
+                throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
+            } else if (error.name === "UserNotFoundException") {
+                throw new Error("등록되지 않은 사용자입니다.");
+            } else if (error.name === "UserNotConfirmedException") {
+                setIsEmailVerificationPending(true);
+                throw new Error("이메일 인증이 필요합니다.");
+            }
+
             throw error;
+        } finally {
+            setIsLoading(false);
         }
     }
 
     const signup = async (email: string, password: string, name: string) => {
         try {
-            const config = (window as any).__PLCR_CONFIG__;
-            if (config?.AUTH_PROVIDER !== 'mock') {
-                // Real API
-                const res = await fetch('/api/auth/signup', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, password, name }),
-                });
-                const result = await res.json();
-                if (!res.ok) throw new Error(result.error || '회원가입 실패');
+            setIsLoading(true);
 
-                // 가입 후 자동 로그인 처리 or 로그인 페이지 이동
-                // 여기서는 로그인 페이지 이동 유도를 위해 아무것도 안 함 (호출측에서 처리)
-            } else {
-                // Mock
-                const user = await mockAuthService.signup(email, password, name);
-                setUser(user);
-                localStorage.setItem(MOCK_USER_STORAGE_KEY, JSON.stringify(user));
+            const result: SignUpOutput = await signUp({
+                username: email,
+                password: password,
+                options: {
+                    userAttributes: {
+                        email: email,
+                        name: name,
+                    },
+                },
+            });
+
+            console.log("[Auth] SignUp result:", result);
+
+            if (result.nextStep.signUpStep === "CONFIRM_SIGN_UP") {
+                setIsEmailVerificationPending(true);
             }
-        } catch (error) {
+
+        } catch (error: any) {
+            console.error("[Auth] Signup error:", error);
+
+            if (error.name === "UsernameExistsException") {
+                throw new Error("이미 존재하는 이메일입니다.");
+            } else if (error.name === "InvalidPasswordException") {
+                throw new Error("비밀번호는 12자 이상, 대/소문자, 숫자, 특수문자를 포함해야 합니다.");
+            } else if (error.name === "InvalidParameterException") {
+                throw new Error("입력 정보가 올바르지 않습니다.");
+            }
+
             throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const confirmEmail = async (email: string, code: string) => {
+        try {
+            setIsLoading(true);
+
+            const result = await confirmSignUp({
+                username: email,
+                confirmationCode: code,
+            });
+
+            if (result.isSignUpComplete) {
+                setIsEmailVerificationPending(false);
+                console.log("[Auth] Email confirmed successfully");
+            }
+        } catch (error: any) {
+            console.error("[Auth] Confirm error:", error);
+
+            if (error.name === "CodeMismatchException") {
+                throw new Error("인증 코드가 올바르지 않습니다.");
+            } else if (error.name === "ExpiredCodeException") {
+                throw new Error("인증 코드가 만료되었습니다. 재발송해주세요.");
+            }
+
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
+    const resendVerificationCode = async (email: string) => {
+        try {
+            await resendSignUpCode({ username: email });
+            console.log("[Auth] Verification code resent");
+        } catch (error: any) {
+            console.error("[Auth] Resend code error:", error);
+            throw new Error("인증 코드 재발송에 실패했습니다.");
         }
     }
 
     const logout = async () => {
         try {
-            await mockAuthService.logout()
-            setUser(null)
-            localStorage.removeItem(MOCK_USER_STORAGE_KEY)
+            await signOut();
+            setUser(null);
+            localStorage.removeItem(USER_STORAGE_KEY);
+            console.log("[Auth] Logged out");
         } catch (error) {
-            console.error("Logout failed", error)
+            console.error("[Auth] Logout error:", error);
+            setUser(null);
+            localStorage.removeItem(USER_STORAGE_KEY);
         }
     }
 
     return (
-        <AuthContext.Provider value={{ user, isLoading, login, signup, logout }}>
+        <AuthContext.Provider value={{
+            user,
+            isLoading,
+            isEmailVerificationPending,
+            login,
+            signup,
+            confirmEmail,
+            resendVerificationCode,
+            logout
+        }}>
             {children}
         </AuthContext.Provider>
     )
