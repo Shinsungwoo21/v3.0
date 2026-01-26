@@ -6,7 +6,7 @@ window.__PLCR_CONFIG__ = {
   PROJECT: "plcr",
   ENVIRONMENT: "prod",
   COGNITO_USER_POOL_ID: "ap-northeast-2_CeuKMd4UK",
-  COGNITO_CLIENT_ID: "1vjgbu2a0k3tha9i808h0fu5ie",
+  COGNITO_CLIENT_ID: "7eq07al29432spinq2elds01gi",
   COGNITO_DOMAIN: "auth.megaticket.click",
   AUTH_ENABLED: true,
   AUTH_PROVIDER: "cognito"
