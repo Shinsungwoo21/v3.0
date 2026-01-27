@@ -53,7 +53,7 @@ export default function LoginPage() {
     if (isLoading) {
         return (
             <div className="flex min-h-screen w-full items-center justify-center">
-                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+                <div className="w-8 h-8 animate-spin rounded-full border-4 border-primary border-t-transparent" />
             </div>
         )
     }
