@@ -40,8 +40,8 @@ phases:
       # 빌드 결과물 검증 (테스트 단계)
       # =========================================================================
       - echo "Verifying build output..."
-      - test -d apps/app/.next || (echo "Build failed: .next not found" && exit 1)
-      - test -f apps/app/.next/BUILD_ID || (echo "Build failed: BUILD_ID not found" && exit 1)
+      - test -d apps/app/.next || (echo "Build failed - .next not found" && exit 1)
+      - test -f apps/app/.next/BUILD_ID || (echo "Build failed - BUILD_ID not found" && exit 1)
       - echo "Build verification passed!"
       - echo "Preparing deployment artifacts..."
       # 배포용 폴더 생성
