@@ -11,14 +11,22 @@ import { LockKeyhole } from "lucide-react"
 
 export default function LoginPage() {
     const router = useRouter()
-    const { login } = useAuth()
+    const { login, isNewPasswordRequired, isLoading } = useAuth()
     const [error, setError] = React.useState<string>("")
     const [loading, setLoading] = React.useState(false)
+    const [showPasswordResetNotice, setShowPasswordResetNotice] = React.useState(false)
+
+    React.useEffect(() => {
+        if (!isLoading && isNewPasswordRequired) {
+            router.push("/reset-password")
+        }
+    }, [isLoading, isNewPasswordRequired, router])
 
     async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault()
         setLoading(true)
         setError("")
+        setShowPasswordResetNotice(false)
 
         const formData = new FormData(event.currentTarget)
         const email = formData.get("email") as string
@@ -27,11 +35,27 @@ export default function LoginPage() {
         try {
             await login(email, password)
             router.push("/")
-        } catch {
-            setError("로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.")
+        } catch (err: any) {
+            if (err.message?.includes("비밀번호 재설정")) {
+                setShowPasswordResetNotice(true)
+                setError(err.message)
+                setTimeout(() => {
+                    router.push("/reset-password")
+                }, 2000)
+            } else {
+                setError(err.message || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.")
+            }
         } finally {
             setLoading(false)
         }
+    }
+
+    if (isLoading) {
+        return (
+            <div className="flex min-h-screen w-full items-center justify-center">
+                <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+        )
     }
 
     return (
@@ -79,7 +103,21 @@ export default function LoginPage() {
                                 className="h-11"
                             />
                         </div>
-                        {error && (
+                        {showPasswordResetNotice && (
+                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <AlertTriangle className="w-5 h-5 text-amber-600" />
+                                    <span className="font-medium text-amber-700">비밀번호 재설정 필요</span>
+                                </div>
+                                <p className="text-sm text-amber-600">
+                                    재해 복구로 인해 비밀번호 재설정이 필요합니다.
+                                    <br />
+                                    <span className="text-xs">잠시 후 비밀번호 재설정 페이지로 이동합니다...</span>
+                                </p>
+                            </div>
+                        )}
+
+                        {error && !showPasswordResetNotice && (
                             <div className="p-3 text-sm text-red-500 bg-red-50 border border-red-100 rounded-md flex items-center gap-2">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-alert-circle"><circle cx="12" cy="12" r="10" /><line x1="12" x2="12" y1="8" y2="12" /><line x1="12" x2="12.01" y1="16" y2="16" /></svg>
                                 {error}

@@ -10,6 +10,7 @@ import {
     fetchUserAttributes,
     confirmSignUp,
     resendSignUpCode,
+    confirmSignIn,
     type SignUpOutput,
 } from "aws-amplify/auth"
 
@@ -27,10 +28,13 @@ interface AuthContextType {
     user: User | null
     isLoading: boolean
     isEmailVerificationPending: boolean
+    isNewPasswordRequired: boolean
+    pendingEmail: string
     login: (email: string, password: string) => Promise<void>
     signup: (email: string, password: string, name: string) => Promise<void>
     confirmEmail: (email: string, code: string) => Promise<void>
     resendVerificationCode: (email: string) => Promise<void>
+    completeNewPassword: (newPassword: string) => Promise<void>
     logout: () => Promise<void>
 }
 
@@ -63,6 +67,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const [user, setUser] = useState<User | null>(null)
     const [isLoading, setIsLoading] = useState(true)
     const [isEmailVerificationPending, setIsEmailVerificationPending] = useState(false)
+    const [isNewPasswordRequired, setIsNewPasswordRequired] = useState(false)
+    const [pendingEmail, setPendingEmail] = useState("")
 
     useEffect(() => {
         configureAmplify();
@@ -103,16 +109,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             if (result.isSignedIn) {
                 await checkCurrentUser();
             } else if (result.nextStep.signInStep === "CONFIRM_SIGN_UP") {
-                // 이메일 인증 필요
                 setIsEmailVerificationPending(true);
                 throw new Error("이메일 인증이 필요합니다. 인증 코드를 확인해주세요.");
+            } else if (result.nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+                setPendingEmail(email);
+                setIsNewPasswordRequired(true);
+                throw new Error("비밀번호 재설정이 필요합니다.");
             } else {
                 throw new Error("로그인에 실패했습니다.");
             }
         } catch (error: any) {
             console.error("[Auth] Login error:", error);
 
-            // Cognito 에러 메시지 한국어 변환
             if (error.name === "NotAuthorizedException") {
                 throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
             } else if (error.name === "UserNotFoundException") {
@@ -204,6 +212,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const completeNewPassword = async (newPassword: string) => {
+        try {
+            setIsLoading(true);
+
+            const result = await confirmSignIn({
+                challengeResponse: newPassword,
+            });
+
+            if (result.isSignedIn) {
+                setIsNewPasswordRequired(false);
+                setPendingEmail("");
+                await checkCurrentUser();
+                console.log("[Auth] New password set successfully");
+            } else {
+                throw new Error("비밀번호 설정에 실패했습니다.");
+            }
+        } catch (error: any) {
+            console.error("[Auth] Complete new password error:", error);
+
+            if (error.name === "InvalidPasswordException") {
+                throw new Error("비밀번호는 12자 이상, 대/소문자, 숫자, 특수문자를 포함해야 합니다.");
+            }
+
+            throw error;
+        } finally {
+            setIsLoading(false);
+        }
+    }
+
     const logout = async () => {
         try {
             await signOut();
@@ -222,10 +259,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             user,
             isLoading,
             isEmailVerificationPending,
+            isNewPasswordRequired,
+            pendingEmail,
             login,
             signup,
             confirmEmail,
             resendVerificationCode,
+            completeNewPassword,
             logout
         }}>
             {children}
