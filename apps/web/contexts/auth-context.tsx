@@ -11,6 +11,8 @@ import {
     confirmSignUp,
     resendSignUpCode,
     confirmSignIn,
+    resetPassword,
+    confirmResetPassword,
     type SignUpOutput,
 } from "aws-amplify/auth"
 
@@ -35,6 +37,8 @@ interface AuthContextType {
     confirmEmail: (email: string, code: string) => Promise<void>
     resendVerificationCode: (email: string) => Promise<void>
     completeNewPassword: (newPassword: string) => Promise<void>
+    forgotPassword: (email: string) => Promise<void>
+    confirmForgotPassword: (email: string, code: string, newPassword: string) => Promise<void>
     logout: () => Promise<void>
 }
 
@@ -252,6 +256,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const forgotPassword = async (email: string) => {
+        try {
+            const result = await resetPassword({ username: email });
+            console.log("[Auth] Password reset initiated:", result);
+        } catch (error: any) {
+            console.error("[Auth] Forgot password error:", error);
+
+            if (error.name === "UserNotFoundException") {
+                throw new Error("등록되지 않은 사용자입니다.");
+            } else if (error.name === "LimitExceededException") {
+                throw new Error("재설정 시도 횟수를 초과했습니다. 잠시 후 다시 시도해주세요.");
+            }
+
+            throw error;
+        }
+    }
+
+    const confirmForgotPassword = async (email: string, code: string, newPassword: string) => {
+        try {
+            await confirmResetPassword({
+                username: email,
+                confirmationCode: code,
+                newPassword: newPassword,
+            });
+            console.log("[Auth] Password reset confirmed");
+        } catch (error: any) {
+            console.error("[Auth] Confirm reset password error:", error);
+
+            if (error.name === "CodeMismatchException") {
+                throw new Error("인증 코드가 올바르지 않습니다.");
+            } else if (error.name === "ExpiredCodeException") {
+                throw new Error("인증 코드가 만료되었습니다.");
+            } else if (error.name === "InvalidPasswordException") {
+                throw new Error("비밀번호는 12자 이상, 대/소문자, 숫자, 특수문자를 포함해야 합니다.");
+            }
+
+            throw error;
+        }
+    }
+
     const logout = async () => {
         try {
             await signOut();
@@ -277,6 +321,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             confirmEmail,
             resendVerificationCode,
             completeNewPassword,
+            forgotPassword,
+            confirmForgotPassword,
             logout
         }}>
             {children}
