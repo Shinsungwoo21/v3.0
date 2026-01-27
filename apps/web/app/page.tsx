@@ -24,10 +24,10 @@ export default function Home() {
   ]
 
   const exhibitions = [
-    { title: "빛의 시어터 <파라오의 이집트>", category: "전시", discount: "37%", price: "9,500원", badge: "" },
-    { title: "빛의 벙커 <칸딘스키>", category: "전시", discount: "45%", price: "6,000원", badge: "" },
-    { title: "사랑의 단상", category: "전시", discount: "30%", price: "7,000원", badge: "" },
-    { title: "빈센트 발 : SHADOWGRAM", category: "전시", discount: "20%", price: "12,000원", badge: "" },
+    { title: "빛의 시어터 <파라오의 이집트>", category: "전시", discount: "37%", price: "9,500원", badge: "HOT", poster: "/posters/exhibition-1.png" },
+    { title: "빛의 벙커 <칸딘스키>", category: "전시", discount: "45%", price: "6,000원", badge: "NEW", poster: "/posters/exhibition-2.png" },
+    { title: "사랑의 단상", category: "전시", discount: "30%", price: "7,000원", badge: "", poster: "/posters/exhibition-3.png" },
+    { title: "빈센트 발 : SHADOWGRAM", category: "전시", discount: "20%", price: "12,000원", badge: "", poster: "/posters/exhibition-4.png" },
   ]
 
   return (
@@ -81,7 +81,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {exhibitions.map((item, idx) => (
-              <SimpleCard key={idx} item={item} bgWhite />
+              <SimpleCard key={idx} item={item} />
             ))}
           </div>
         </section>

@@ -63,7 +63,7 @@ function SiteHeaderContent() {
             "sticky top-0 z-50 w-full transition-all duration-300",
             isScrolled ? "bg-white/80 backdrop-blur-md border-b shadow-sm" : "bg-transparent"
         )}>
-            <div className="container mx-auto px-4 md:px-8 h-16 flex items-center justify-center gap-8 md:gap-16">
+            <div className="container mx-auto px-4 md:px-8 h-16 flex items-center justify-center gap-4 md:gap-8">
                 {/* Logo & Nav Group - Centered relative to screen with Search */}
                 <div className="flex items-center gap-6">
                     <Link href="/" className="flex items-center gap-2">
@@ -97,7 +97,7 @@ function SiteHeaderContent() {
 
 
                 {/* Right Side Group */}
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-4 md:gap-14">
                     <div className="relative hidden lg:block">
                         <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
                         <Input
@@ -141,7 +141,7 @@ function SiteHeaderContent() {
                             <Link href="/login">
                                 <Button variant="ghost" size="sm" className="hidden md:flex gap-2 text-muted-foreground hover:text-gray-900 hover:bg-transparent">
                                     <User className="h-5 w-5" />
-                                    <span className="font-medium">로그인</span>
+                                    <span className="font-medium">로그인 / 회원가입</span>
                                 </Button>
                             </Link>
                         )}

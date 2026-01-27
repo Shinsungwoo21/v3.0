@@ -96,10 +96,7 @@ export default function LoginPage() {
                                 회원가입
                             </Link>
                         </div>
-                        {/* Mock Creds Hint */}
-                        <div className="mt-4 p-3 bg-gray-50 rounded-lg text-xs text-gray-400 text-center">
-                            테스트 계정: test@example.com / password
-                        </div>
+
                     </CardFooter>
                 </form>
             </Card>

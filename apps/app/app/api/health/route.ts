@@ -7,12 +7,10 @@ export async function GET() {
     try {
         // DynamoDB 연결 확인 (테이블 존재 여부 체크)
         // 환경변수가 없으면 에러가 날 수 있으므로 체크
-        const tableName = process.env.DYNAMODB_PERFORMANCES_TABLE;
-        if (tableName) {
-            await dynamodb.send(new DescribeTableCommand({
-                TableName: tableName
-            }));
-        }
+        const tableName = process.env.DYNAMODB_PERFORMANCES_TABLE || "plcr-gtbl-performances";
+        await dynamodb.send(new DescribeTableCommand({
+            TableName: tableName
+        }));
 
         return NextResponse.json({
             status: 'healthy',

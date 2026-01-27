@@ -61,7 +61,10 @@ jobs:
         run: |
           cat > /tmp/config.js << 'EOF'
           window.__PLCR_CONFIG__ = {
-            API_URL: "https://megaticket.click",
+            API_URL: "https://api.megaticket.click",
+            COGNITO_USER_POOL_ID: "ap-northeast-1_OAhT6pJmf",
+            COGNITO_CLIENT_ID: "5u4v7b0fltopg3v906p6njekpc",
+            COGNITO_DOMAIN: "ap-northeast-1oaht6pjmf.auth.ap-northeast-1.amazoncognito.com",
             AWS_REGION: "ap-northeast-1",
             PROJECT: "plcr",
             ENVIRONMENT: "dr"

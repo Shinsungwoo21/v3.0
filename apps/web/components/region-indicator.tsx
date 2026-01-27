@@ -60,26 +60,9 @@ export function RegionIndicator() {
         }
     };
 
-    // V9.1: URL에 region 파라미터 추가 (useSearchParams 제거 - Suspense 트리거 방지)
+    // V9.2: URL 강제 변경 로직 제거 (새로고침 시 메인 페이지로 튕기는 현상 방지)
     useEffect(() => {
-        if (!region || hasAddedRegion.current) return
-
-        // window.location.search를 직접 사용 (useSearchParams는 Suspense 트리거)
-        const currentParams = new URLSearchParams(window.location.search)
-
-        // 이미 URL에 region이 있으면 스킵
-        if (currentParams.get('region') === region) {
-            hasAddedRegion.current = true
-            return
-        }
-
-        // 현재 URL 파라미터 복사 후 region 추가
-        currentParams.set('region', region)
-
-        // window.history.replaceState로 URL만 변경 (페이지 재렌더링 없음)
-        const newUrl = `${pathname}?${currentParams.toString()}`
-        window.history.replaceState(null, '', newUrl)
-        hasAddedRegion.current = true
+        // 더 이상 URL에 region 파라미터를 강제로 추가하지 않음
     }, [region, pathname])
 
     // 로딩 중 표시

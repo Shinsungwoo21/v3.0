@@ -64,6 +64,8 @@ export DYNAMODB_RESERVATIONS_TABLE=plcr-gtbl-reservations
 export DYNAMODB_PERFORMANCES_TABLE=plcr-gtbl-performances
 export DYNAMODB_VENUES_TABLE=plcr-gtbl-venues
 export DYNAMODB_SCHEDULES_TABLE=plcr-gtbl-schedules
+export DYNAMODB_TABLE_USERS=plcr-gtbl-users
+export JWT_SECRET=megaticket-jwt-secret-key-2025-change-in-production
 ENVEOF
 
 chown ec2-user:ec2-user /home/ec2-user/app-env.sh
