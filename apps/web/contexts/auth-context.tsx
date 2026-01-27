@@ -106,16 +106,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
                 password: password,
             });
 
+            console.log("[Auth] Sign in result:", result);
+
             if (result.isSignedIn) {
                 await checkCurrentUser();
             } else if (result.nextStep.signInStep === "CONFIRM_SIGN_UP") {
                 setIsEmailVerificationPending(true);
                 throw new Error("이메일 인증이 필요합니다. 인증 코드를 확인해주세요.");
             } else if (result.nextStep.signInStep === "CONFIRM_SIGN_IN_WITH_NEW_PASSWORD_REQUIRED") {
+                console.log("[Auth] NEW_PASSWORD_REQUIRED challenge");
                 setPendingEmail(email);
                 setIsNewPasswordRequired(true);
                 throw new Error("비밀번호 재설정이 필요합니다.");
+            } else if (result.nextStep.signInStep === "DONE") {
+                await checkCurrentUser();
             } else {
+                console.warn("[Auth] Unexpected signInStep:", result.nextStep.signInStep);
                 throw new Error("로그인에 실패했습니다.");
             }
         } catch (error: any) {

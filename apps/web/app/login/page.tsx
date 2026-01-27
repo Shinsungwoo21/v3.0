@@ -94,7 +94,7 @@ export default function LoginPage() {
                         <div className="grid gap-2">
                             <div className="flex items-center justify-between">
                                 <label htmlFor="password" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">비밀번호</label>
-                                <Link href="#" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
+                                <Link href="/forgot-password" className="text-sm text-muted-foreground hover:text-primary underline-offset-4 hover:underline">
                                     비밀번호 찾기
                                 </Link>
                             </div>
