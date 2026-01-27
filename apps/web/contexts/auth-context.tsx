@@ -121,6 +121,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } catch (error: any) {
             console.error("[Auth] Login error:", error);
 
+            if (error.name === "PasswordResetRequiredException") {
+                console.log("[Auth] DR migration - password reset required");
+                throw new Error("DR_PASSWORD_RESET_REQUIRED");
+            }
+
             if (error.name === "NotAuthorizedException") {
                 throw new Error("이메일 또는 비밀번호가 올바르지 않습니다.");
             } else if (error.name === "UserNotFoundException") {

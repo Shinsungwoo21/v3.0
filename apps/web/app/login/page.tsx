@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
-import { LockKeyhole } from "lucide-react"
+import { LockKeyhole, AlertTriangle, Loader2 } from "lucide-react"
 
 export default function LoginPage() {
     const router = useRouter()
@@ -36,7 +36,10 @@ export default function LoginPage() {
             await login(email, password)
             router.push("/")
         } catch (err: any) {
-            if (err.message?.includes("비밀번호 재설정")) {
+            if (err.message === "DR_PASSWORD_RESET_REQUIRED") {
+                setShowPasswordResetNotice(true)
+                setError("DR 전환으로 비밀번호 재설정이 필요합니다.")
+            } else if (err.message?.includes("비밀번호 재설정")) {
                 setShowPasswordResetNotice(true)
                 setError(err.message)
                 setTimeout(() => {
@@ -45,6 +48,7 @@ export default function LoginPage() {
             } else {
                 setError(err.message || "로그인에 실패했습니다. 이메일과 비밀번호를 확인해주세요.")
             }
+
         } finally {
             setLoading(false)
         }
@@ -103,17 +107,40 @@ export default function LoginPage() {
                                 className="h-11"
                             />
                         </div>
+
                         {showPasswordResetNotice && (
-                            <div className="p-4 bg-amber-50 border border-amber-200 rounded-md">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <AlertTriangle className="w-5 h-5 text-amber-600" />
-                                    <span className="font-medium text-amber-700">비밀번호 재설정 필요</span>
+                            <div className="p-4 bg-orange-50 border border-orange-200 rounded-lg">
+                                <div className="flex items-center gap-3 mb-3">
+                                    <div className="text-3xl">🌏</div>
+                                    <div className="flex-1">
+                                        <h3 className="font-bold text-lg text-orange-900">
+                                            DR 전환: Tokyo 리전에서 서비스 중
+                                        </h3>
+                                        <p className="text-sm text-gray-700 mt-1">
+                                            보안을 위해 비밀번호를 재설정해야 합니다.
+                                        </p>
+                                    </div>
                                 </div>
-                                <p className="text-sm text-amber-600">
-                                    재해 복구로 인해 비밀번호 재설정이 필요합니다.
-                                    <br />
-                                    <span className="text-xs">잠시 후 비밀번호 재설정 페이지로 이동합니다...</span>
-                                </p>
+                                <div className="space-y-1.5 text-xs text-gray-600 mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <span>📧</span>
+                                        <span>1. 등록된 이메일로 인증 코드 전송</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span>🔑</span>
+                                        <span>2. 새 비밀번호 설정</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span>✅</span>
+                                        <span>3. 로그인 완료</span>
+                                    </div>
+                                </div>
+                                <Link
+                                    href="/forgot-password"
+                                    className="block w-full text-center bg-orange-500 text-white py-2 rounded-lg hover:bg-orange-600 transition-colors font-medium"
+                                >
+                                    비밀번호 재설정 시작하기
+                                </Link>
                             </div>
                         )}
 
@@ -125,8 +152,17 @@ export default function LoginPage() {
                         )}
                     </CardContent>
                     <CardFooter className="flex flex-col gap-4 pt-4">
-                        <Button className="w-full h-11 text-base font-medium shadow-md transition-all hover:shadow-lg" type="submit" disabled={loading}>
-                            {loading ? "로그인 중..." : "로그인"}
+                        <Button
+                            className="w-full h-11 text-base font-medium shadow-md transition-all hover:shadow-lg"
+                            type="submit"
+                            disabled={loading || showPasswordResetNotice}
+                        >
+                            {loading ? (
+                                <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    로그인 중...
+                                </>
+                            ) : showPasswordResetNotice ? "리다이렉트 중..." : "로그인"}
                         </Button>
                         <div className="text-center text-sm text-gray-500 mt-2">
                             아직 회원이 아니신가요?{" "}
