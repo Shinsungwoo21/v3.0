@@ -7,6 +7,42 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card"
 export function ConcertSection() {
     const concerts = [
         {
+            id: "perf-jeong-o-byeol-jeom",
+            title: "✷ 정 오 별 점 pt.2 ✷",
+            venue: "언플러그드 라운지",
+            price: "90,000원",
+            image: "/posters/indie-band-1.png",
+            tag: "HOT"
+        },
+        {
+            id: "perf-29cm-stage",
+            title: "[29CM STAGE] 6th STAGE",
+            venue: "무신사개러지",
+            price: "70,000원",
+            image: "/posters/indie-band-2.png",
+            tag: "HOT"
+        },
+        {
+            id: "perf-free-fall",
+            title: "자유낙하 - [Free Fall to Indie]",
+            venue: "언플러그드 라운지",
+            price: "80,000원",
+            image: "/posters/indie-band-3.png",
+            tag: "NEW"
+        },
+        {
+            id: "perf-on-air",
+            title: "ON:AIR",
+            venue: "서울스트리밍스테이션",
+            price: "70,000원",
+            image: "/posters/indie-band-4.png",
+            tag: "NEW"
+        }
+    ]
+
+    /* 기존 콘서트 데이터 (백업)
+    const concerts_backup = [
+        {
             id: "perf-bts-worldtour",
             title: "방탄소년단 MAP OF THE SOUL TOUR",
             venue: "잠실 종합운동장 주경기장",
@@ -39,15 +75,16 @@ export function ConcertSection() {
             tag: "NEW"
         }
     ]
-
+    */
 
     return (
         <section className="w-full space-y-6">
             <div className="flex items-center justify-between border-b-2 border-primary pb-4">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-2xl font-bold tracking-tight">🎤 콘서트</h2>
-                    <span className="text-sm text-primary font-medium">최고의 아티스트를 만나보세요</span>
+                    <h2 className="text-2xl font-bold tracking-tight">🎸 인디밴드</h2>
+                    <span className="text-sm text-primary font-medium">유니크한 감성, 인디 밴드의 세계로</span>
                 </div>
+
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

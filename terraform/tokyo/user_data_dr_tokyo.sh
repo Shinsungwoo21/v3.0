@@ -32,6 +32,8 @@ export DYNAMODB_RESERVATIONS_TABLE=plcr-gtbl-reservations
 export DYNAMODB_PERFORMANCES_TABLE=plcr-gtbl-performances
 export DYNAMODB_VENUES_TABLE=plcr-gtbl-venues
 export DYNAMODB_SCHEDULES_TABLE=plcr-gtbl-schedules
+export DYNAMODB_TABLE_USERS=plcr-gtbl-users
+export JWT_SECRET=megaticket-jwt-secret-key-2025-change-in-production
 export DR_RECOVERY_MODE=true
 ENVEOF
 

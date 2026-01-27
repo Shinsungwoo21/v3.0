@@ -10,6 +10,9 @@ interface PlcrRuntimeConfig {
     ENVIRONMENT: string;
     AUTH_ENABLED: boolean;
     AUTH_PROVIDER: string;
+    COGNITO_USER_POOL_ID?: string;
+    COGNITO_CLIENT_ID?: string;
+    COGNITO_DOMAIN?: string;
 }
 
 declare global {
@@ -19,18 +22,18 @@ declare global {
 }
 
 const DEFAULT_CONFIG: PlcrRuntimeConfig = {
-    API_URL: "https://megaticket.click",
+    API_URL: "https://api.megaticket.click",
     AWS_REGION: "ap-northeast-2",
     PROJECT: "plcr",
     ENVIRONMENT: "prod",
-    AUTH_ENABLED: false,
-    AUTH_PROVIDER: "mock"
+    AUTH_ENABLED: true,
+    AUTH_PROVIDER: "cognito", // "cognito" 또는 "mock"
+    // Cognito 기본값 (config.js에서 덮어씀)
+    COGNITO_USER_POOL_ID: "",
+    COGNITO_CLIENT_ID: "",
+    COGNITO_DOMAIN: "",
 };
 
-/**
- * 런타임 Config 가져오기
- * window.__PLCR_CONFIG__가 있으면 사용, 없으면 기본값 반환
- */
 export function getPlcrConfig(): PlcrRuntimeConfig {
     if (typeof window !== "undefined" && window.__PLCR_CONFIG__) {
         return window.__PLCR_CONFIG__;
@@ -38,23 +41,24 @@ export function getPlcrConfig(): PlcrRuntimeConfig {
     return DEFAULT_CONFIG;
 }
 
-/**
- * API URL 가져오기
- */
 export function getApiUrl(): string {
     return getPlcrConfig().API_URL;
 }
 
-/**
- * AWS 리전 가져오기
- */
 export function getAwsRegion(): string {
     return getPlcrConfig().AWS_REGION;
 }
 
-/**
- * 환경 정보 가져오기
- */
 export function getEnvironment(): string {
     return getPlcrConfig().ENVIRONMENT;
+}
+
+export function getCognitoConfig() {
+    const config = getPlcrConfig();
+    return {
+        userPoolId: config.COGNITO_USER_POOL_ID || "",
+        clientId: config.COGNITO_CLIENT_ID || "",
+        domain: config.COGNITO_DOMAIN || "",
+        region: config.AWS_REGION,
+    };
 }

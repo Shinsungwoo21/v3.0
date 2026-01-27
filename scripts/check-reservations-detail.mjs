@@ -12,7 +12,7 @@ const docClient = DynamoDBDocumentClient.from(client);
 
 try {
     const result = await docClient.send(new QueryCommand({
-        TableName: "KDT-Msp4-PLDR-reservations",
+        TableName: "plcr-gtbl-reservations",
         IndexName: "userId-index",
         KeyConditionExpression: "userId = :uid",
         ExpressionAttributeValues: {

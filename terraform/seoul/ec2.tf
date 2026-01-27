@@ -27,7 +27,7 @@ resource "aws_launch_template" "app" {
     tags = {
       Name   = "${var.project_name}-app-${var.region_code}"
       Tier   = "app"
-      Backup = "true"
+      BackupFrequency = "monthly"
     }
   }
 
@@ -56,7 +56,6 @@ resource "aws_autoscaling_group" "app" {
       min_healthy_percentage = 50
       instance_warmup        = 300
     }
-    triggers = ["launch_template"]
   }
 
   launch_template {
