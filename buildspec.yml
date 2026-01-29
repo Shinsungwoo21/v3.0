@@ -1,79 +1,42 @@
 version: 0.2
 
 # =============================================================================
-# CodeBuild 빌드 명세서 (개인과제 - CodePipeline용)
+# CodeBuild 빌드 명세서 (ECS/ECR 버전)
 # =============================================================================
-# apps/app 빌드 후 deploy 폴더에 복사 (node_modules 포함)
-# DR용 아티팩트는 codepipeline-latest/ 경로에 저장 (GitHub Actions와 분리)
+# Docker 이미지 빌드 후 ECR에 푸시
 # =============================================================================
 
+env:
+  variables:
+    AWS_REGION: ap-northeast-2
+    ECR_REPO_NAME: plcr-ecr-app-repo  # ECR 리포지토리 이름으로 변경
+
 phases:
-  install:
-    runtime-versions:
-      nodejs: 20
-    commands:
-      - n 24.12.0
-      - node --version
-      - npm --version
-  
   pre_build:
     commands:
-      - echo "Installing workspace dependencies..."
-      - npm install
-      - echo "Building shared-types..."
-      - cd packages/shared-types
-      - npm run build
-      - cd ../..
-      - echo "Dependencies ready"
-  
+      - echo "Logging in to Amazon ECR..."
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_URI=$AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO_NAME
+      - aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+      - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c 1-7)
+      - echo "Image tag = $IMAGE_TAG"
+
   build:
     commands:
-      - echo "Building Next.js app..."
-      - cd apps/app
-      - npm run build
-      - cd ../..
-      - echo "Build completed successfully"
-  
+      - echo "Building Docker image..."
+      - docker build -t $ECR_REPO_NAME:$IMAGE_TAG .
+      - docker tag $ECR_REPO_NAME:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
+      - docker tag $ECR_REPO_NAME:$IMAGE_TAG $ECR_URI:latest
+
   post_build:
     commands:
-      # =========================================================================
-      # 빌드 결과물 검증 (테스트 단계)
-      # =========================================================================
-      - echo "Verifying build output..."
-      - test -d apps/app/.next || (echo "Build failed - .next not found" && exit 1)
-      - test -f apps/app/.next/BUILD_ID || (echo "Build failed - BUILD_ID not found" && exit 1)
-      - echo "Build verification passed!"
-      - echo "Preparing deployment artifacts..."
-      # 배포용 폴더 생성
-      - mkdir -p deploy/scripts
-      # 앱 소스 복사 (.next 포함, 숨김 파일 포함)
-      - cp -r apps/app/. deploy/
-      # 루트 node_modules 복사 (Monorepo 의존성)
-      - cp -r node_modules deploy/
-      # appspec.yml은 apps/app에서 이미 복사됨
-      # 배포 스크립트 복사
-      - cp scripts/stop_application.sh deploy/scripts/
-      - cp scripts/start_application.sh deploy/scripts/
-      - cp scripts/validate_service.sh deploy/scripts/
-      - echo "Artifacts prepared"
-      # =============================================================================
-      # DR용 고정 경로에 아티팩트 복사 (CRR로 도쿄에 복제됨)
-      # GitHub Actions(latest/)와 분리하여 codepipeline-latest/ 사용
-      # =============================================================================
-      - echo "Copying artifact to codepipeline-latest/ for DR..."
-      - cd deploy && zip -r ../app-latest.zip . && cd ..
-      - aws s3 cp app-latest.zip s3://plcr-s3-an2-app-artifacts/codepipeline-latest/app.zip --region ap-northeast-2 || true
-      - rm -f app-latest.zip
-      - echo "DR artifact copy completed"
+      - echo "Pushing Docker image to ECR..."
+      - docker push $ECR_URI:$IMAGE_TAG
+      - docker push $ECR_URI:latest
+      - echo "Creating imagedefinitions.json for ECS..."
+      - printf '[{"name":"plcr-container-app","imageUri":"%s"}]' $ECR_URI:$IMAGE_TAG > imagedefinitions.json
+      - cat imagedefinitions.json
 
 artifacts:
   files:
-    - '**/*'
-  base-directory: deploy
-  name: app-build-$(date +%Y%m%d-%H%M%S)
-
-# 캐시 비활성화 (Node 버전 변경으로 인한 호환성 문제 방지)
-# cache:
-#   paths:
-#     - 'node_modules/**/*'
-#     - 'apps/app/node_modules/**/*'
+    - imagedefinitions.json
